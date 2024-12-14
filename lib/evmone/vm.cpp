@@ -29,8 +29,8 @@ constexpr evmc_capabilities_flagset get_capabilities(evmc_vm* /*vm*/) noexcept
 
 evmc_set_option_result set_option(evmc_vm* c_vm, char const* c_name, char const* c_value) noexcept
 {
-    const auto name = (c_name != nullptr) ? std::string_view{c_name} : std::string_view{};
-    const auto value = (c_value != nullptr) ? std::string_view{c_value} : std::string_view{};
+    const auto name = (c_name != nullptr) ? std::string_view{c_name} : "";
+    const auto value = (c_value != nullptr) ? std::string_view{c_value} : "";
     auto& vm = *static_cast<VM*>(c_vm);
 
     if (name == "advanced")
