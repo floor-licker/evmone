@@ -54,7 +54,7 @@ struct AdvancedExecutionState : ExecutionState
     {}
 
     /// Computes the current EVM stack height.
-    [[nodiscard]] int stack_size() noexcept
+    [[nodiscard]] int stack_size() const noexcept
     {
         return static_cast<int>((&stack.top() - stack_space.bottom()));
     }
