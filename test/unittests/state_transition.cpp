@@ -8,6 +8,7 @@
 #include <test/statetest/statetest.hpp>
 #include <filesystem>
 #include <fstream>
+#include "../utils/glaze_meta.hpp"
 
 namespace evmone::test
 {
@@ -170,7 +171,7 @@ std::string_view to_test_fork_name(evmc_revision rev) noexcept
 void state_transition::export_state_test(
     const std::variant<TransactionReceipt, std::error_code>& res, const TestState& post)
 {
-    json::json j;
+    glz::json_t j;
     auto& jt = j[export_test_name];
 
     auto& jenv = jt["env"];
@@ -181,7 +182,7 @@ void state_transition::export_state_test(
     jenv["currentBaseFee"] = hex0x(block.base_fee);
     jenv["currentRandom"] = hex0x(block.prev_randao);
 
-    jt["pre"] = to_json(pre);
+    jt["pre"] = glz::write_json(pre);
 
     auto& jtx = jt["transaction"];
     if (tx.to.has_value())
@@ -206,16 +207,16 @@ void state_transition::export_state_test(
 
     // Force `accessLists` output even if empty.
     if (tx.type >= Transaction::Type::access_list)
-        jtx["accessLists"][0] = json::json::array();
+        jtx["accessLists"][0] = glz::json_t::array();
 
     if (!tx.access_list.empty())
     {
         auto& ja = jtx["accessLists"][0];
         for (const auto& [addr, storage_keys] : tx.access_list)
         {
-            json::json je;
+            glz::json_t je;
             je["address"] = hex0x(addr);
-            auto& jstorage_keys = je["storageKeys"] = json::json::array();
+            auto& jstorage_keys = je["storageKeys"] = glz::json_t::array();
             for (const auto& k : storage_keys)
                 jstorage_keys.emplace_back(hex0x(k));
             ja.emplace_back(std::move(je));
@@ -225,7 +226,7 @@ void state_transition::export_state_test(
     if (tx.type == Transaction::Type::blob)
     {
         jtx["maxFeePerBlobGas"] = hex0x(tx.max_blob_gas_price);
-        jtx["blobVersionedHashes"] = json::json::array();
+        jtx["blobVersionedHashes"] = glz::json_t::array();
         for (const auto& blob_hash : tx.blob_hashes)
         {
             jtx["blobVersionedHashes"].emplace_back(hex0x(blob_hash));
@@ -237,7 +238,7 @@ void state_transition::export_state_test(
         auto& ja = jtx["authorizationList"];
         for (const auto& [chain_id, addr, nonce, signer, r, s, y_parity] : tx.authorization_list)
         {
-            json::json je;
+            glz::json_t je;
             je["chainId"] = hex0x(chain_id);
             je["address"] = hex0x(addr);
             je["nonce"] = hex0x(nonce);
@@ -266,6 +267,6 @@ void state_transition::export_state_test(
         jpost["logs"] = hex0x(logs_hash(std::get<TransactionReceipt>(res).logs));
     }
 
-    std::ofstream{export_file_path} << std::setw(2) << j;
+    std::ofstream{export_file_path} << glz::write_json(j, glz::format::indent);
 }
 }  // namespace evmone::test

@@ -5,6 +5,7 @@
 #include "eof_validation.hpp"
 #include <test/statetest/statetest.hpp>
 #include <test/utils/utils.hpp>
+#include "../utils/glaze_meta.hpp"
 #include <fstream>
 
 namespace evmone::test
@@ -129,7 +130,7 @@ void eof_validation::TearDown()
 
 void eof_validation::export_eof_validation_test()
 {
-    json::json j;
+    glz::json_t j;
     auto& jt = j[export_test_name];
 
     auto& jvectors = jt["vectors"];
@@ -155,6 +156,20 @@ void eof_validation::export_eof_validation_test()
         }
     }
 
-    std::ofstream{export_file_path} << std::setw(2) << j;
+    std::ofstream{export_file_path} << glz::write_json(j, glz::format::indent);
+}
+
+TEST(eof_validation, validate_container)
+{
+    constexpr std::string_view input = R"({
+        "code": "0xEF0001010000020001000103000100FEDA",
+        "kind": "runtime",
+        "version": 1,
+        "types": [1],
+        "data": []
+    })";
+
+    const auto container = glz::read_json<EOFContainer>(input).value();
+    EXPECT_EQ(validate_container(container), EOFValidationError::success);
 }
 }  // namespace evmone::test

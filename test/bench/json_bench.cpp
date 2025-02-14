@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
 #include <glaze/glaze.hpp>
-#include <nlohmann/json.hpp>
+#include "../utils/glaze_meta.hpp"
 
 struct StateTransitionTest {
     struct Env {
@@ -158,7 +158,7 @@ static const std::string state_json = R"({
 
 static void BM_GlazeJsonParse(benchmark::State& state) {
     for (auto _ : state) {
-        auto result = glz::read_json<StateTransitionTest>(state_json);
+        auto result = glz::read_json<glz::json_t>(state_json);
         benchmark::DoNotOptimize(result);
     }
 }

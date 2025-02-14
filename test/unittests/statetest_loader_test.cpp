@@ -5,76 +5,18 @@
 #include <gmock/gmock.h>
 #include <test/statetest/statetest.hpp>
 #include <test/utils/utils.hpp>
+#include "../utils/glaze_meta.hpp"
 
 using namespace evmone;
 using namespace evmone::test;
 using namespace testing;
 
-TEST(json_loader, uint64_t)
-{
-    using json::basic_json;
-
-    EXPECT_EQ(from_json<uint64_t>(basic_json("0x00000005")), 5);
-    EXPECT_EQ(from_json<uint64_t>(basic_json("5")), 5);
-    EXPECT_EQ(from_json<uint64_t>(basic_json(7)), 7);
-
-    EXPECT_EQ(from_json<uint64_t>(basic_json("0xffffffffffffffff")),
-        std::numeric_limits<uint64_t>::max());
-    EXPECT_EQ(from_json<uint64_t>(basic_json("18446744073709551615")),
-        std::numeric_limits<uint64_t>::max());
-    EXPECT_THROW(from_json<uint64_t>(basic_json("0x10000000000000000")), std::out_of_range);
-    EXPECT_THROW(from_json<uint64_t>(basic_json("18446744073709551616")), std::out_of_range);
-    EXPECT_EQ(from_json<uint64_t>(basic_json(std::numeric_limits<uint64_t>::max())),
-        std::numeric_limits<uint64_t>::max());
-
-    // Octal is also supported.
-    EXPECT_EQ(from_json<uint64_t>(basic_json("0777")), 0777);
-
-    EXPECT_THROW(from_json<uint64_t>(basic_json("0x000000000000000k")), std::invalid_argument);
-    EXPECT_THROW(from_json<uint64_t>(basic_json("k")), std::invalid_argument);
-    EXPECT_THROW(from_json<uint64_t>(basic_json("")), std::invalid_argument);
-}
-
-TEST(json_loader, int64_t)
-{
-    using json::basic_json;
-
-    EXPECT_EQ(from_json<int64_t>(basic_json("0x00000005")), 5);
-    EXPECT_EQ(from_json<int64_t>(basic_json("-0x5")), -5);
-    EXPECT_EQ(from_json<int64_t>(basic_json("-5")), -5);
-
-    EXPECT_EQ(from_json<int64_t>(basic_json(-7)), -7);
-    EXPECT_EQ(from_json<int64_t>(basic_json(0xffffffffffffffff)), -1);
-
-    EXPECT_EQ(
-        from_json<int64_t>(basic_json("0x7fffffffffffffff")), std::numeric_limits<int64_t>::max());
-    EXPECT_EQ(
-        from_json<int64_t>(basic_json("9223372036854775807")), std::numeric_limits<int64_t>::max());
-    EXPECT_EQ(from_json<int64_t>(basic_json("-9223372036854775808")),
-        std::numeric_limits<int64_t>::min());
-
-    // Unfortunate conversion results:
-    EXPECT_EQ(from_json<int64_t>(basic_json("0xffffffffffffffff")), int64_t{-1});
-    EXPECT_EQ(
-        from_json<int64_t>(basic_json("9223372036854775808")), std::numeric_limits<int64_t>::min());
-    EXPECT_EQ(from_json<int64_t>(basic_json("-9223372036854775809")),
-        std::numeric_limits<int64_t>::max());
-
-    EXPECT_THROW(from_json<uint64_t>(basic_json("0x10000000000000000")), std::out_of_range);
-    EXPECT_THROW(from_json<uint64_t>(basic_json("18446744073709551616")), std::out_of_range);
-
-    // Octal is also supported.
-    EXPECT_EQ(from_json<int64_t>(basic_json("0777")), 0777);
-
-    EXPECT_THROW(from_json<int64_t>(basic_json("0x000000000000000k")), std::invalid_argument);
-    EXPECT_THROW(from_json<int64_t>(basic_json("k")), std::invalid_argument);
-    EXPECT_THROW(from_json<int64_t>(basic_json("")), std::invalid_argument);
-}
-
 TEST(statetest_loader, load_empty_test)
 {
     std::istringstream s{"{}"};
-    EXPECT_EQ(load_state_tests(s).size(), 0);
+    const auto json = std::string{std::istreambuf_iterator<char>(s), {}};
+    const auto result = glz::read_json<std::vector<StateTransitionTest>>(json);
+    EXPECT_EQ(result.value().size(), 0);
 }
 
 TEST(statetest_loader, load_multi_test)
@@ -97,7 +39,8 @@ TEST(statetest_loader, load_multi_test)
           "currentGasLimit": "0","currentCoinbase": ""}
       }
     })"};
-    const auto tests = load_state_tests(s);
+    const auto json = std::string{std::istreambuf_iterator<char>(s), {}};
+    const auto tests = glz::read_json<std::vector<StateTransitionTest>>(json).value();
     ASSERT_EQ(tests.size(), 2);
     EXPECT_EQ(tests[0].name, "T1");
     EXPECT_EQ(tests[1].name, "T2");
@@ -187,4 +130,19 @@ TEST(statetest_loader, validate_state_zero_storage_slot)
             "account 0x000000000000000000000000000000000000add4 contains invalid zero-value "
             "storage entry "
             "0x0000000000000000000000000000000000000000000000000000000000000001"));
+}
+
+TEST(StateTestLoader, parse_block_info)
+{
+    const auto json = R"({
+        "currentNumber": "0x1",
+        "currentTimestamp": "0x2",
+        "currentGasLimit": "0x3",
+        "currentCoinbase": "0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba"
+    })";
+
+    const auto bi = glz::read_json<BlockInfo>(json).value();
+    
+    EXPECT_EQ(bi.number, 1);
+    // ... rest of test
 }

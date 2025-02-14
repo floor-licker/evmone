@@ -10,6 +10,7 @@
 #include <span>
 #include <variant>
 #include "../../deps/src/glaze/include/glaze/glaze.hpp"
+#include "../utils/glaze_meta.hpp"
 
 namespace evmone
 {
@@ -167,114 +168,63 @@ namespace glz {
             "storage", &state::StateDiff::storage
         );
     };
+
+    // Add meta for state::AccessList
+    template <>
+    struct meta<state::AccessList> {
+        static constexpr auto value = object(
+            "address", &state::AccessList::address,
+            "storageKeys", &state::AccessList::storage_keys
+        );
+    };
+
+    // Add meta for state::Ommer
+    template <>
+    struct meta<state::Ommer> {
+        static constexpr auto value = object(
+            "address", &state::Ommer::address,
+            "delta", &state::Ommer::delta
+        );
+    };
+
+    // Add meta for state::Authorization
+    template <>
+    struct meta<state::Authorization> {
+        static constexpr auto value = object(
+            "chain_id", &state::Authorization::chain_id,
+            "addr", &state::Authorization::addr,
+            "nonce", &state::Authorization::nonce,
+            "signer", &state::Authorization::signer,
+            "r", &state::Authorization::r,
+            "s", &state::Authorization::s,
+            "v", &state::Authorization::v
+        );
+    };
+
+    // Add meta for TestBlockHashes
+    template <>
+    struct meta<TestBlockHashes> {
+        static constexpr auto value = object(
+            "blockHashes", &TestBlockHashes::operator std::unordered_map<int64_t, bytes32>&
+        );
+    };
+
+    // Add meta for state::TransactionTrace
+    template <>
+    struct meta<state::TransactionTrace> {
+        static constexpr auto value = object(
+            "pc", &state::TransactionTrace::pc,
+            "op", &state::TransactionTrace::op,
+            "gas", &state::TransactionTrace::gas,
+            "gasCost", &state::TransactionTrace::gas_cost,
+            "memory", &state::TransactionTrace::memory,
+            "stack", &state::TransactionTrace::stack,
+            "depth", &state::TransactionTrace::depth,
+            "refund", &state::TransactionTrace::refund,
+            "error", &state::TransactionTrace::error,
+            "reverted", &state::TransactionTrace::reverted
+        );
+    };
 }
-
-template<>
-struct glz::meta<state::BlockInfo> {
-    static constexpr auto value = object(
-        "number", &state::BlockInfo::number,
-        "timestamp", &state::BlockInfo::timestamp,
-        "parent_timestamp", &state::BlockInfo::parent_timestamp,
-        "gas_limit", &state::BlockInfo::gas_limit,
-        "coinbase", &state::BlockInfo::coinbase,
-        "difficulty", &state::BlockInfo::difficulty,
-        "parent_difficulty", &state::BlockInfo::parent_difficulty,
-        "parent_ommers_hash", &state::BlockInfo::parent_ommers_hash,
-        "prev_randao", &state::BlockInfo::prev_randao,
-        "base_fee", &state::BlockInfo::base_fee,
-        "withdrawals", &state::BlockInfo::withdrawals
-    );
-};
-
-template<>
-struct glz::meta<state::TransactionReceipt> {
-    static constexpr auto value = object(
-        "transactionHash", &state::TransactionReceipt::transaction_hash,
-        "gasUsed", &state::TransactionReceipt::gas_used,
-        "cumulativeGasUsed", &state::TransactionReceipt::cumulative_gas_used,
-        "blockHash", &state::TransactionReceipt::block_hash,
-        "contractAddress", &state::TransactionReceipt::contract_address,
-        "logsBloom", &state::TransactionReceipt::logs_bloom_filter,
-        "logs", &state::TransactionReceipt::logs,
-        "status", &state::TransactionReceipt::status,
-        "transactionIndex", &state::TransactionReceipt::transaction_index
-    );
-};
-
-template<>
-struct glz::meta<state::Withdrawal> {
-    static constexpr auto value = object(
-        "index", &state::Withdrawal::index,
-        "validatorIndex", &state::Withdrawal::validator_index,
-        "address", &state::Withdrawal::recipient,
-        "amount", &state::Withdrawal::amount
-    );
-};
-
-template<>
-struct glz::meta<state::AccessList> {
-    static constexpr auto value = object(
-        "address", &state::AccessList::address,
-        "storageKeys", &state::AccessList::storage_keys
-    );
-};
-
-template<>
-struct glz::meta<state::Log> {
-    static constexpr auto value = object(
-        "address", &state::Log::addr,
-        "topics", &state::Log::topics,
-        "data", &state::Log::data,
-        "blockNumber", &state::Log::block_number,
-        "blockHash", &state::Log::block_hash,
-        "transactionHash", &state::Log::transaction_hash,
-        "transactionIndex", &state::Log::transaction_index,
-        "logIndex", &state::Log::log_index
-    );
-};
-
-template<>
-struct glz::meta<state::Ommer> {
-    static constexpr auto value = object(
-        "address", &state::Ommer::address,
-        "delta", &state::Ommer::delta
-    );
-};
-
-template<>
-struct glz::meta<state::Authorization> {
-    static constexpr auto value = object(
-        "chain_id", &state::Authorization::chain_id,
-        "addr", &state::Authorization::addr,
-        "nonce", &state::Authorization::nonce,
-        "signer", &state::Authorization::signer,
-        "r", &state::Authorization::r,
-        "s", &state::Authorization::s,
-        "v", &state::Authorization::v
-    );
-};
-
-template<>
-struct glz::meta<TestBlockHashes> {
-    static constexpr auto value = object(
-        "blockHashes", &TestBlockHashes::operator std::unordered_map<int64_t, bytes32>&
-    );
-};
-
-template<>
-struct glz::meta<state::TransactionTrace> {
-    static constexpr auto value = object(
-        "pc", &state::TransactionTrace::pc,
-        "op", &state::TransactionTrace::op,
-        "gas", &state::TransactionTrace::gas,
-        "gasCost", &state::TransactionTrace::gas_cost,
-        "memory", &state::TransactionTrace::memory,
-        "stack", &state::TransactionTrace::stack,
-        "depth", &state::TransactionTrace::depth,
-        "refund", &state::TransactionTrace::refund,
-        "error", &state::TransactionTrace::error,
-        "reverted", &state::TransactionTrace::reverted
-    );
-};
 }  // namespace test
 }  // namespace evmone

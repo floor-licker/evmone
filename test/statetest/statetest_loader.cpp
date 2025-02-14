@@ -91,3 +91,18 @@ void validate_state(const TestState& state, evmc_revision rev)
 }
 
 }  // namespace evmone::test
+
+std::vector<StateTransitionTest> load_state_tests(std::istream& input)
+{
+    const auto json = std::string{std::istreambuf_iterator<char>(input), {}};
+    const auto j = glz::read_json<glz::json_t>(json).value();
+
+    std::vector<StateTransitionTest> result;
+    for (const auto& [name, test_json] : j.items())
+    {
+        auto test = glz::read<StateTransitionTest>(test_json);
+        test.name = name;
+        result.push_back(std::move(test));
+    }
+    return result;
+}

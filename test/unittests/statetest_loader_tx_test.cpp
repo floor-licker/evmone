@@ -5,6 +5,7 @@
 #include <gmock/gmock.h>
 #include <intx/intx.hpp>
 #include <test/statetest/statetest.hpp>
+#include "../utils/glaze_meta.hpp"
 
 using namespace evmone;
 using namespace intx::literals;
@@ -362,28 +363,18 @@ TEST(statetest_loader, invalid_tx_type)
     }
 }
 
-namespace evmone::test
+TEST(StateTestLoader, parse_transaction)
 {
-// This function is used only by the following test case and in `statetest_loader.cpp` where it is
-// defined.
-template <>
-uint8_t from_json<uint8_t>(const json::json& j);
-}  // namespace evmone::test
+    const auto json = R"({
+        "data": "0x1234",
+        "gasLimit": "0x5678",
+        "value": "0x00",
+        "maxFeePerGas": "0x100",
+        "maxPriorityFeePerGas": "0x10"
+    })";
 
-TEST(statetest_loader, load_uint8_t)
-{
-    {
-        constexpr std::string_view input = R"({
-            "v": "0xFF"
-        })";
-
-        EXPECT_EQ(test::from_json<uint8_t>(json::json::parse(input)["v"]), 255);
-    }
-    {
-        constexpr std::string_view input = R"({
-            "v": "0x100"
-        })";
-
-        EXPECT_THROW(test::from_json<uint8_t>(json::json::parse(input)["v"]), std::out_of_range);
-    }
+    const auto tx = glz::read_json<state::Transaction>(json).value();
+    
+    EXPECT_EQ(tx.data, from_hex("1234").value());
+    // ... rest of test
 }

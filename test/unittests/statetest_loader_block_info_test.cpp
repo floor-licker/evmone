@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <test/statetest/statetest.hpp>
+#include "../utils/glaze_meta.hpp"
 
 using namespace evmone;
 
@@ -304,12 +305,33 @@ TEST(statetest_loader, block_info_parent_beacon_block_root)
 TEST(statetest_loader, block_hashes)
 {
     constexpr std::string_view input = R"({
-            "blockHashes": {
-                "0" : "0xe729de3fec21e30bea3d56adb01ed14bc107273c2775f9355afb10f594a10d9e",
-                "1" : "0xb5eee60b45801179cbde3781b9a5dee9b3111554618c9cda3d6f7e351fd41e0b"
-            }})";
+        "blockHashes": {
+            "0": "0xe729de3fec21e30bea3d56adb01ed14bc107273c2775f9355afb10f594a10d9e",
+            "1": "0xb5eee60b45801179cbde3781b9a5dee9b3111554618c9cda3d6f7e351fd41e0b"
+        }
+    })";
 
-    const auto bh = test::from_json<test::TestBlockHashes>(json::json::parse(input));
+    const auto bh = glz::read_json<test::TestBlockHashes>(input).value();
     EXPECT_EQ(bh.at(0), 0xe729de3fec21e30bea3d56adb01ed14bc107273c2775f9355afb10f594a10d9e_bytes32);
     EXPECT_EQ(bh.at(1), 0xb5eee60b45801179cbde3781b9a5dee9b3111554618c9cda3d6f7e351fd41e0b_bytes32);
+}
+
+TEST(statetest_loader, block_info_with_withdrawals)
+{
+    constexpr std::string_view input = R"({
+        "currentNumber": "0x1",
+        "withdrawals": [
+            {
+                "index": "0x0",
+                "validatorIndex": "0x1",
+                "address": "0x2",
+                "amount": "0x3"
+            }
+        ]
+    })";
+
+    const auto bi = glz::read_json<state::BlockInfo>(input).value();
+
+    EXPECT_EQ(bi.withdrawals.size(), 1);
+    // ... rest of test
 }

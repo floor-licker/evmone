@@ -16,9 +16,9 @@
 #include <fstream>
 #include <iostream>
 #include <string_view>
+#include "../utils/glaze_meta.hpp"
 
 namespace fs = std::filesystem;
-namespace json = glz;
 using namespace evmone;
 using namespace evmone::test;
 using namespace std::literals;
@@ -188,11 +188,11 @@ int main(int argc, const char* argv[])
                     if (holds_alternative<std::error_code>(res))
                     {
                         const auto ec = std::get<std::error_code>(res);
-                        json::json j_rejected_tx;
+                        glz::json_t j_rejected_tx;
                         j_rejected_tx["hash"] = computed_tx_hash_str;
                         j_rejected_tx["index"] = i;
                         j_rejected_tx["error"] = ec.message();
-                        auto& rejected_array = j_result["rejected"].get<std::vector<json::json>>();
+                        auto& rejected_array = j_result["rejected"].get<std::vector<glz::json_t>>();
                         rejected_array.push_back(j_rejected_tx);
                     }
                     else
@@ -202,7 +202,7 @@ int main(int argc, const char* argv[])
                         const auto& tx_logs = receipt.logs;
 
                         txs_logs.insert(txs_logs.end(), tx_logs.begin(), tx_logs.end());
-                        auto& j_receipt = j_result["receipts"].get<std::vector<json::json>>()[i];
+                        auto& j_receipt = j_result["receipts"].get<std::vector<glz::json_t>>()[i];
 
                         j_receipt["transactionHash"] = computed_tx_hash_str;
                         j_receipt["gasUsed"] = hex0x(static_cast<uint64_t>(receipt.gas_used));
@@ -215,7 +215,7 @@ int main(int argc, const char* argv[])
                         j_receipt["blockHash"] = hex0x(bytes32{});
                         j_receipt["contractAddress"] = hex0x(address{});
                         j_receipt["logsBloom"] = hex0x(receipt.logs_bloom_filter);
-                        j_receipt["logs"] = json::json::array();
+                        j_receipt["logs"] = glz::json_t::array();
                         j_receipt["root"] = "";
                         j_receipt["status"] = "0x1";
                         j_receipt["transactionIndex"] = hex0x(i);

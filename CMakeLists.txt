@@ -160,12 +160,6 @@ if(EVMONE_TESTING)
     target_include_directories(evmone-state PRIVATE ${glaze_SOURCE_DIR}/include)
 endif()
 
-# Only keep nlohmann for benchmarking
-if(EVMONE_BENCH)
-    hunter_add_package(nlohmann_json)
-    find_package(nlohmann_json CONFIG REQUIRED)
-endif()
-
 # INSTALL
 
 set(install_targets evmone)

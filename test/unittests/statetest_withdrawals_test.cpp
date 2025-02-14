@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <test/state/mpt_hash.hpp>
 #include <test/statetest/statetest.hpp>
+#include "../utils/glaze_meta.hpp"
 
 using namespace evmone;
 using namespace evmone::state;
@@ -16,11 +17,7 @@ TEST(statetest_withdrawals, withdrawals_root_hash)
     constexpr std::string_view input =
         R"([{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe162d9","index":"0xc13ad8","validatorIndex":"0xa2f00"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe1c5c2","index":"0xc13ad9","validatorIndex":"0xa2f01"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe14f28","index":"0xc13ada","validatorIndex":"0xa2f02"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe190f2","index":"0xc13adb","validatorIndex":"0xa2f03"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe1e59c","index":"0xc13adc","validatorIndex":"0xa2f04"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe1bbfe","index":"0xc13add","validatorIndex":"0xa2f05"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe20974","index":"0xc13ade","validatorIndex":"0xa2f06"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe145b7","index":"0xc13adf","validatorIndex":"0xa2f07"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe11e5d","index":"0xc13ae0","validatorIndex":"0xa2f08"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe221e0","index":"0xc13ae1","validatorIndex":"0xa2f09"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe2061a","index":"0xc13ae2","validatorIndex":"0xa2f0a"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe23d22","index":"0xc13ae3","validatorIndex":"0xa2f0b"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe1ab3a","index":"0xc13ae4","validatorIndex":"0xa2f0c"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe19535","index":"0xc13ae5","validatorIndex":"0xa2f0d"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0x317c537","index":"0xc13ae6","validatorIndex":"0xa2f0e"},{"address":"0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f","amount":"0xe1965f","index":"0xc13ae7","validatorIndex":"0xa2f0f"}])";
 
-    const auto j = json::json::parse(input);
-
-    std::vector<Withdrawal> withdrawals;
-    for (const auto& withdrawal : j)
-        withdrawals.push_back(from_json<Withdrawal>(withdrawal));
+    const auto withdrawals = glz::read_json<std::vector<Withdrawal>>(input).value();
 
     EXPECT_EQ(mpt_hash(withdrawals),
         0x38cd9ae992a22b94a1582e7d0691dbef56a90cdb36bf7b11d98373f80b102c8f_bytes32);
@@ -93,12 +90,27 @@ TEST(statetest_withdrawals, withdrawals_warmup_test_case)
     "address" : "0xc000000000000000000000000000000000000010"
 }
 ])";
-    const auto j = json::json::parse(input);
-
-    std::vector<Withdrawal> withdrawals;
-    for (const auto& withdrawal : j)
-        withdrawals.push_back(from_json<Withdrawal>(withdrawal));
+    const auto withdrawals = glz::read_json<std::vector<Withdrawal>>(input).value();
 
     EXPECT_EQ(mpt_hash(withdrawals),
         0xaa45c53e9f7d6a8362f80876029915da00b1441ef39eb9bbb74f98465ff433ad_bytes32);
+}
+
+TEST(StateTest, withdrawals)
+{
+    const auto json = R"({
+        "withdrawals": [
+            {
+                "index": "0x0",
+                "validatorIndex": "0x1",
+                "address": "0x0000000000000000000000000000000000000001",
+                "amount": "0x2"
+            }
+        ]
+    })";
+
+    const auto withdrawals = glz::read_json<std::vector<Withdrawal>>(json).value();
+    
+    EXPECT_EQ(withdrawals.size(), 1);
+    // ... rest of test
 }

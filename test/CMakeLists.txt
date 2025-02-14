@@ -13,12 +13,6 @@ find_package(GTest CONFIG REQUIRED)
 hunter_add_package(benchmark)
 find_package(benchmark CONFIG REQUIRED)
 
-# Only needed for benchmarking
-if(EVMONE_BENCH)
-    hunter_add_package(nlohmann_json)
-    find_package(nlohmann_json CONFIG REQUIRED)
-endif()
-
 add_subdirectory(utils)
 add_subdirectory(bench)
 add_subdirectory(blockchaintest)
@@ -81,5 +75,11 @@ target_link_libraries(evmone-unittests PRIVATE
 target_link_libraries(evmone-bench PRIVATE
     evmone
     benchmark::benchmark
-    nlohmann_json::nlohmann_json  # Keep for benchmarking
+)
+
+add_executable(evmone-unittests
+    unittests/evm_test.cpp
+    unittests/eof_test.cpp
+    utils/glaze_meta_test.cpp
+    ${PROJECT_SOURCE_DIR}/lib/evmone/eof.hpp
 )
