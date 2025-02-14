@@ -72,3 +72,9 @@ if(EVMONE_PRECOMPILES_SILKPRE)
         precompiles_silkpre.cpp
     )
 endif()
+
+target_link_libraries(evmone-state PRIVATE
+    evmone
+    testutils
+    glaze::glaze
+)

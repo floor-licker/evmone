@@ -98,7 +98,7 @@ std::vector<StateTransitionTest> load_state_tests(std::istream& input)
     const auto j = glz::read_json<glz::json_t>(json).value();
 
     std::vector<StateTransitionTest> result;
-    for (const auto& [name, test_json] : j.items())
+    for (const auto& [name, test_json] : j.get<glz::json_t::object_t>())
     {
         auto test = glz::read<StateTransitionTest>(test_json);
         test.name = name;

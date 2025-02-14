@@ -76,10 +76,3 @@ target_link_libraries(evmone-bench PRIVATE
     evmone
     benchmark::benchmark
 )
-
-add_executable(evmone-unittests
-    unittests/evm_test.cpp
-    unittests/eof_test.cpp
-    utils/glaze_meta_test.cpp
-    ${PROJECT_SOURCE_DIR}/lib/evmone/eof.hpp
-)

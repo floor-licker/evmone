@@ -9,7 +9,7 @@
 #include <map>
 #include <span>
 #include <variant>
-#include "../../deps/src/glaze/include/glaze/glaze.hpp"
+#include <glaze/glaze.hpp>
 #include "../utils/glaze_meta.hpp"
 
 namespace evmone
