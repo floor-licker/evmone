@@ -23,7 +23,7 @@ TEST(statetest_loader, tx_to_empty_string)
         "s": "0x2222222222222222222222222222222222222222222222222222222222222222"
     })";
 
-    const auto tx = test::from_json<state::Transaction>(json::json::parse(input));
+    const auto tx = glz::read_json<state::Transaction>(input).value();
     EXPECT_FALSE(tx.to.has_value());
 }
 
@@ -38,7 +38,7 @@ TEST(statetest_loader, tx_to_null)
         "s": "0x2222222222222222222222222222222222222222222222222222222222222222"
     })";
 
-    const auto tx = test::from_json<state::Transaction>(json::json::parse(input));
+    const auto tx = glz::read_json<state::Transaction>(input).value();
     EXPECT_FALSE(tx.to.has_value());
 }
 
@@ -57,7 +57,7 @@ TEST(statetest_loader, tx_create_legacy)
         "v": "1"
     })";
 
-    const auto tx = test::from_json<state::Transaction>(json::json::parse(input));
+    const auto tx = glz::read_json<state::Transaction>(input).value();
     EXPECT_EQ(tx.type, state::Transaction::Type::legacy);
     EXPECT_EQ(tx.data, (bytes{0xb0, 0xb1}));
     EXPECT_EQ(tx.gas_limit, 0x9091);
@@ -91,7 +91,7 @@ TEST(statetest_loader, tx_eip1559)
         "v": "1"
     })";
 
-    const auto tx = test::from_json<state::Transaction>(json::json::parse(input));
+    const auto tx = glz::read_json<state::Transaction>(input).value();
     EXPECT_EQ(tx.type, state::Transaction::Type::eip1559);
     EXPECT_EQ(tx.data, (bytes{0xb0, 0xb1}));
     EXPECT_EQ(tx.gas_limit, 0x9091);
@@ -127,7 +127,7 @@ TEST(statetest_loader, tx_access_list)
         "v": "1"
     })";
 
-    const auto tx = test::from_json<state::Transaction>(json::json::parse(input));
+    const auto tx = glz::read_json<state::Transaction>(input).value();
     EXPECT_EQ(tx.type, state::Transaction::Type::eip1559);
     EXPECT_TRUE(tx.data.empty());
     EXPECT_EQ(tx.gas_limit, 0);
@@ -165,7 +165,7 @@ TEST(statetest_loader, tx_confusing)
         "v": "1"
     })";
 
-    EXPECT_THAT([&] { test::from_json<state::Transaction>(json::json::parse(input)); },
+    EXPECT_THAT([&] { glz::read_json<state::Transaction>(input); },
         ThrowsMessage<std::invalid_argument>(
             "invalid transaction: contains both legacy and EIP-1559 fees"));
 }
@@ -189,7 +189,7 @@ TEST(statetest_loader, tx_type_1)
         "v": "1"
     })";
 
-    const auto tx = test::from_json<state::Transaction>(json::json::parse(input));
+    const auto tx = glz::read_json<state::Transaction>(input).value();
     EXPECT_EQ(tx.type, state::Transaction::Type::access_list);
     EXPECT_TRUE(tx.data.empty());
     EXPECT_EQ(tx.gas_limit, 0);
@@ -234,7 +234,7 @@ TEST(statetest_loader, tx_type_3)
         "v": "1"
     })";
 
-    const auto tx = test::from_json<state::Transaction>(json::json::parse(input));
+    const auto tx = glz::read_json<state::Transaction>(input).value();
     EXPECT_EQ(tx.type, state::Transaction::Type::blob);
     EXPECT_TRUE(tx.data.empty());
     EXPECT_EQ(tx.gas_limit, 0);
@@ -292,7 +292,7 @@ TEST(statetest_loader, tx_invalid_blob_versioned_hash)
         "sender" : "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b"
     })";
 
-    EXPECT_THAT([&] { test::from_json<state::Transaction>(json::json::parse(input)); },
+    EXPECT_THAT([&] { glz::read_json<state::Transaction>(input); },
         ThrowsMessage<std::invalid_argument>(
             "invalid hash: 0x1a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8"));
 }
@@ -317,7 +317,7 @@ TEST(statetest_loader, invalid_tx_type)
                 "v": "1"
             })";
 
-        EXPECT_THAT([&] { test::from_json<state::Transaction>(json::json::parse(input)); },
+        EXPECT_THAT([&] { glz::read_json<state::Transaction>(input); },
             ThrowsMessage<std::invalid_argument>("wrong transaction type: 2, expected: 1"));
     }
     {
@@ -334,7 +334,7 @@ TEST(statetest_loader, invalid_tx_type)
             "v": "1"
         })";
 
-        EXPECT_THAT([&] { test::from_json<state::Transaction>(json::json::parse(input)); },
+        EXPECT_THAT([&] { glz::read_json<state::Transaction>(input); },
             ThrowsMessage<std::invalid_argument>("wrong transaction type: 1, expected: 0"));
     }
 
@@ -357,7 +357,7 @@ TEST(statetest_loader, invalid_tx_type)
             "v": "1"
         })";
 
-        EXPECT_THAT([&] { test::from_json<state::Transaction>(json::json::parse(input)); },
+        EXPECT_THAT([&] { glz::read_json<state::Transaction>(input); },
             ThrowsMessage<std::invalid_argument>("wrong transaction type: 1, expected: 2"));
     }
 }

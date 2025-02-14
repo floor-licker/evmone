@@ -13,12 +13,6 @@ namespace evmone::test
 namespace
 {
 template <typename T>
-T load_if_exists(const json::value& j, std::string_view key)
-{
-    return json::get_optional<T>(j, key).value_or(T{});
-}
-
-template <typename T>
 std::optional<T> load_optional(const json::value& j, std::string_view key)
 {
     return json::get_optional<T>(j, key);
@@ -45,18 +39,18 @@ BlockHeader from_json<BlockHeader>(const json::value& j)
         .state_root = state_root,
         .receipts_root = receipts_root,
         .logs_bloom = state::bloom_filter_from_bytes(logs_bloom),
-        .difficulty = load_if_exists<int64_t>(j, "difficulty"),
-        .prev_randao = load_if_exists<bytes32>(j, "mixHash"),
+        .difficulty = load_optional<int64_t>(j, "difficulty"),
+        .prev_randao = load_optional<bytes32>(j, "mixHash"),
         .block_number = number,
         .gas_limit = gas_limit,
         .gas_used = gas_used,
         .timestamp = timestamp,
         .extra_data = extra_data,
-        .base_fee_per_gas = load_if_exists<uint64_t>(j, "baseFeePerGas"),
+        .base_fee_per_gas = load_optional<uint64_t>(j, "baseFeePerGas"),
         .hash = hash,
         .transactions_root = txs_root,
-        .withdrawal_root = load_if_exists<hash256>(j, "withdrawalsRoot"),
-        .parent_beacon_block_root = load_if_exists<hash256>(j, "parentBeaconBlockRoot"),
+        .withdrawal_root = load_optional<hash256>(j, "withdrawalsRoot"),
+        .parent_beacon_block_root = load_optional<hash256>(j, "parentBeaconBlockRoot"),
         .blob_gas_used = load_optional<uint64_t>(j, "blobGasUsed"),
     };
 }
@@ -128,6 +122,15 @@ std::vector<BlockchainTest> load_blockchain_tests(std::istream& input)
     }
 
     return result;
+}
+
+namespace glz {
+    template <>
+    struct meta<BlockHeader> {
+        static constexpr auto value = object(
+            // Add fields...
+        );
+    };
 }
 
 }  // namespace evmone::test

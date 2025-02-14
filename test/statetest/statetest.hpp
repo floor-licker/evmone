@@ -73,40 +73,105 @@ struct StateTransitionTest
     std::unordered_map<uint64_t, std::string> input_labels;
 };
 
-template <typename T>
-T from_json(const json::json& j) = delete;
+namespace glz {
+    // Add meta definitions for basic types
+    template <>
+    struct meta<uint64_t> {
+        static constexpr auto value = [](auto&& self, auto&& value) {
+            if constexpr (glz::is_reading) {
+                if (value.is_string()) {
+                    self = std::stoull(value.get<std::string>(), nullptr, 0);
+                } else {
+                    self = value.get<uint64_t>();
+                }
+            }
+        };
+    };
 
-template <>
-uint64_t from_json<uint64_t>(const json::json& j);
+    // Add meta definitions for all types
+    template <>
+    struct meta<StateTransitionTest> {
+        static constexpr auto value = object(
+            "name", &StateTransitionTest::name,
+            "pre_state", &StateTransitionTest::pre_state,
+            "block_hashes", &StateTransitionTest::block_hashes,
+            "multi_tx", &StateTransitionTest::multi_tx,
+            "cases", &StateTransitionTest::cases,
+            "input_labels", &StateTransitionTest::input_labels
+        );
+    };
 
-template <>
-int64_t from_json<int64_t>(const json::json& j);
+    template <>
+    struct meta<StateTransitionTest::Case> {
+        static constexpr auto value = object(
+            "rev", &StateTransitionTest::Case::rev,
+            "expectations", &StateTransitionTest::Case::expectations,
+            "block", &StateTransitionTest::Case::block
+        );
+    };
 
-template <>
-address from_json<address>(const json::json& j);
+    // Add meta for Case::Expectation
+    template <>
+    struct meta<StateTransitionTest::Case::Expectation> {
+        static constexpr auto value = object(
+            "indexes", &StateTransitionTest::Case::Expectation::indexes,
+            "hash", &StateTransitionTest::Case::Expectation::state_hash,
+            "logs", &StateTransitionTest::Case::Expectation::logs_hash,
+            "expectException", &StateTransitionTest::Case::Expectation::exception
+        );
+    };
 
-template <>
-hash256 from_json<hash256>(const json::json& j);
+    // Add meta for TestMultiTransaction
+    template <>
+    struct meta<TestMultiTransaction> {
+        static constexpr auto value = object(
+            "accessLists", &TestMultiTransaction::access_lists,
+            "data", &TestMultiTransaction::inputs,
+            "gasLimit", &TestMultiTransaction::gas_limits,
+            "value", &TestMultiTransaction::values,
+            "nonce", &TestMultiTransaction::nonce,
+            "maxFeePerGas", &TestMultiTransaction::max_gas_price,
+            "maxPriorityFeePerGas", &TestMultiTransaction::max_priority_gas_price,
+            "type", &TestMultiTransaction::type,
+            "blobVersionedHashes", &TestMultiTransaction::blob_hashes,
+            "maxFeePerBlobGas", &TestMultiTransaction::max_blob_gas_price,
+            "authorizationList", &TestMultiTransaction::authorization_list,
+            "r", &TestMultiTransaction::r,
+            "s", &TestMultiTransaction::s,
+            "v", &TestMultiTransaction::v
+        );
+    };
 
-template <>
-bytes from_json<bytes>(const json::json& j);
+    // Add meta for bytes (hex string conversion)
+    template <>
+    struct meta<bytes> {
+        static constexpr auto value = [](auto&& self, auto&& value) {
+            if constexpr (glz::is_reading) {
+                const auto hex = value.template get<std::string>();
+                self = evmc::from_hex(hex).value();
+            } else {
+                value = "0x" + evmc::hex(self);
+            }
+        };
+    };
 
-state::BlockInfo from_json_with_rev(const json::json& j, evmc_revision rev);
-
-template <>
-TestBlockHashes from_json<TestBlockHashes>(const json::json& j);
-
-template <>
-state::Withdrawal from_json<state::Withdrawal>(const json::json& j);
-
-template <>
-TestState from_json<TestState>(const json::json& j);
-
-template <>
-state::Transaction from_json<state::Transaction>(const json::json& j);
-
-/// Exports the State (accounts) to JSON format (aka pre/post/alloc state).
-json::json to_json(const TestState& state);
+    // Add meta for hash256 (hex string conversion)
+    template <>
+    struct meta<hash256> {
+        static constexpr auto value = [](auto&& self, auto&& value) {
+            if constexpr (glz::is_reading) {
+                const auto hex = value.template get<std::string>();
+                if (hex == "0" || hex == "0x0") {
+                    self = 0x00_bytes32;
+                    return;
+                }
+                self = evmc::from_hex<hash256>(hex).value();
+            } else {
+                value = "0x" + evmc::hex(self);
+            }
+        };
+    };
+}
 
 /// Returns the standardized error message for the transaction validation error.
 [[nodiscard]] std::string get_invalid_tx_message(state::ErrorCode errc) noexcept;
