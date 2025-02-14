@@ -4,18 +4,14 @@
 #include <string_view>
 #include <vector>
 
-// This is a compatibility layer - we should check if we can remove nlohmann::json
-// dependencies and update it to use only glaze
-
-// Compatibility layer to make transition smoother
+// This is a compatibility layer for glaze
 namespace json {
-    using value = glz::json_t;  // Replace nlohmann::json
+    using value = glz::json_t;
     
+    // Add common functions
     template<typename T>
-    T get(const value& j) {
-        T val;
-        glz::read<T>(j, val);
-        return val;
+    T get(const value& v) {
+        return glz::read<T>(v);
     }
     
     template<typename T>

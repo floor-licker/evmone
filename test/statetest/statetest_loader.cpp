@@ -14,30 +14,6 @@ using evmc::from_hex;
 
 namespace
 {
-template <typename T>
-T load_if_exists(const json::value& j, std::string_view key)
-{
-    return json::get_optional<T>(j, key).value_or(T{});
-}
-
-template <typename T>
-static std::optional<T> integer_from_json(const json::value& j)
-{
-    if (j.is_number())
-        return j.get<T>();
-
-    if (!j.is_string())
-        return {};
-
-    const auto s = j.get<std::string>();
-
-    size_t num_processed = 0;
-    const auto v = static_cast<T>(std::stoull(s, &num_processed, 0));
-    if (num_processed == 0 || num_processed != s.size())
-        return {};
-    return v;
-}
-
 template <>
 uint8_t from_json<uint8_t>(const json::value& j)
 {
@@ -241,8 +217,8 @@ state::BlockInfo from_json_with_rev(const json::value& j, evmc_revision rev)
     // Handle withdrawals
     std::vector<state::Withdrawal> withdrawals;
     if (rev >= EVMC_SHANGHAI) {
-        if (auto j_withdrawals = json::get_optional<json::value>(j, "withdrawals")) {
-            withdrawals = glz::read<std::vector<state::Withdrawal>>(*j_withdrawals);
+        if (auto withdrawals_opt = glz::get_value<std::vector<state::Withdrawal>>(j, "withdrawals")) {
+            withdrawals = *withdrawals_opt;
         }
     }
 
@@ -697,6 +673,55 @@ namespace glz {
                 self = evmc::from_hex<address>(value.template get<std::string>()).value();
             }
         };
+    };
+
+    // For hash256 conversion
+    template <>
+    struct meta<hash256> {
+        static constexpr auto value = [](auto&& self, auto&& value) {
+            if constexpr (glz::is_reading) {
+                const auto s = value.template get<std::string>();
+                if (s == "0" || s == "0x0") {
+                    self = 0x00_bytes32;
+                    return;
+                }
+                const auto opt_hash = evmc::from_hex<hash256>(s);
+                if (!opt_hash)
+                    throw std::invalid_argument("invalid hash: " + s);
+                self = *opt_hash;
+            }
+        };
+    };
+
+    // For uint256 conversion
+    template <>
+    struct meta<intx::uint256> {
+        static constexpr auto value = [](auto&& self, auto&& value) {
+            if constexpr (glz::is_reading) {
+                const auto s = value.template get<std::string>();
+                if (s.starts_with("0x:bigint "))
+                    self = std::numeric_limits<intx::uint256>::max();  // Fake it
+                else
+                    self = intx::from_string<intx::uint256>(s);
+            }
+        };
+    };
+
+    // Add meta for TestState
+    template <>
+    struct meta<TestState> {
+        static constexpr auto value = object(
+            "accounts", &TestState::operator std::map<address, TestAccount>&
+        );
+    };
+
+    // Add meta for state::AccessList
+    template <>
+    struct meta<state::AccessList> {
+        static constexpr auto value = object(
+            "address", &state::AccessList::address,
+            "storageKeys", &state::AccessList::storage_keys
+        );
     };
 }
 }  // namespace evmone::test

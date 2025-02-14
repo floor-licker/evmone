@@ -13,6 +13,7 @@ target_sources(
 )
 
 add_executable(evmone-json-bench)
+# Keep nlohmann_json only for benchmarking purposes
 target_link_libraries(evmone-json-bench PRIVATE benchmark::benchmark glaze::glaze nlohmann_json::nlohmann_json)
 target_sources(evmone-json-bench PRIVATE json_bench.cpp)
 

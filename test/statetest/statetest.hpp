@@ -7,10 +7,7 @@
 #include "../state/errors.hpp"
 #include "../state/test_state.hpp"
 #include "../state/transaction.hpp"
-#include <nlohmann/json.hpp>
 #include <glaze/glaze.hpp>
-
-namespace json = nlohmann;
 
 namespace evmone::test
 {
