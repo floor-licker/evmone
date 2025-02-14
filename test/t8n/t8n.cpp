@@ -11,17 +11,26 @@
 #include "../utils/utils.hpp"
 #include <evmone/evmone.h>
 #include <evmone/version.h>
-#include <nlohmann/json.hpp>
+#include <glaze/glaze.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string_view>
 
 namespace fs = std::filesystem;
-namespace json = nlohmann;
+namespace json = glz;
 using namespace evmone;
 using namespace evmone::test;
 using namespace std::literals;
+
+// Add glaze meta definitions for t8n specific types
+template<>
+struct glz::meta<state::Requests> {
+    static constexpr auto value = object(
+        "data", &state::Requests::data,
+        "raw_data", &state::Requests::raw_data
+    );
+};
 
 int main(int argc, const char* argv[])
 {
@@ -81,30 +90,30 @@ int main(int argc, const char* argv[])
 
         if (!alloc_file.empty())
         {
-            const auto j = json::json::parse(std::ifstream{alloc_file}, nullptr, false);
-            state = from_json<TestState>(j);
+            const auto j = glz::read_json_file(alloc_file);
+            state = glz::read<TestState>(j);
             validate_state(state, rev);
         }
         if (!env_file.empty())
         {
-            const auto j = json::json::parse(std::ifstream{env_file});
+            const auto j = glz::read_json_file(env_file);
             block = from_json_with_rev(j, rev);
-            block_hashes = from_json<TestBlockHashes>(j);
+            block_hashes = glz::read<TestBlockHashes>(j);
         }
 
-        json::json j_result;
+        json::value j_result = json::object();
 
         // Difficulty was received from upstream. No need to calc
         // TODO: Check if it's needed by the blockchain test. If not remove if statement true branch
         if (block.difficulty != 0)
-            j_result["currentDifficulty"] = hex0x(block.difficulty);
+            json::write(j_result, "currentDifficulty", hex0x(block.difficulty));
         else
         {
             const auto current_difficulty = state::calculate_difficulty(block.parent_difficulty,
                 block.parent_ommers_hash != EmptyListHash, block.parent_timestamp, block.timestamp,
                 block.number, rev);
 
-            j_result["currentDifficulty"] = hex0x(current_difficulty);
+            json::write(j_result, "currentDifficulty", hex0x(current_difficulty));
             block.difficulty = current_difficulty;
 
             if (rev < EVMC_PARIS)  // Override prev_randao with difficulty pre-Merge
@@ -112,7 +121,7 @@ int main(int argc, const char* argv[])
         }
 
         if (rev >= EVMC_LONDON)
-            j_result["currentBaseFee"] = hex0x(block.base_fee);
+            json::write(j_result, "currentBaseFee", hex0x(block.base_fee));
 
         int64_t cumulative_gas_used = 0;
         auto blob_gas_left = static_cast<int64_t>(state::max_blob_gas_per_block(rev));
@@ -124,7 +133,7 @@ int main(int argc, const char* argv[])
         // Parse and execute transactions
         if (!txs_file.empty())
         {
-            const auto j_txs = json::json::parse(std::ifstream{txs_file});
+            const auto j_txs = glz::read_json_file(txs_file);
 
             evmc::VM vm{evmc_create_evmone()};
 
@@ -135,8 +144,8 @@ int main(int argc, const char* argv[])
 
             if (j_txs.is_array())
             {
-                j_result["receipts"] = json::json::array();
-                j_result["rejected"] = json::json::array();
+                json::write(j_result, "receipts", json::array());
+                json::write(j_result, "rejected", json::array());
 
                 test::system_call_block_start(state, block, block_hashes, rev, vm);
 
@@ -183,7 +192,8 @@ int main(int argc, const char* argv[])
                         j_rejected_tx["hash"] = computed_tx_hash_str;
                         j_rejected_tx["index"] = i;
                         j_rejected_tx["error"] = ec.message();
-                        j_result["rejected"].push_back(j_rejected_tx);
+                        auto& rejected_array = j_result["rejected"].get<std::vector<json::json>>();
+                        rejected_array.push_back(j_rejected_tx);
                     }
                     else
                     {
@@ -192,23 +202,23 @@ int main(int argc, const char* argv[])
                         const auto& tx_logs = receipt.logs;
 
                         txs_logs.insert(txs_logs.end(), tx_logs.begin(), tx_logs.end());
-                        auto& j_receipt = j_result["receipts"][j_result["receipts"].size()];
+                        auto& j_receipt = j_result["receipts"].get<std::vector<json::json>>()[i];
 
-                        j_receipt["transactionHash"] = computed_tx_hash_str;
-                        j_receipt["gasUsed"] = hex0x(static_cast<uint64_t>(receipt.gas_used));
+                        json::write(j_receipt, "transactionHash", computed_tx_hash_str);
+                        json::write(j_receipt, "gasUsed", hex0x(static_cast<uint64_t>(receipt.gas_used)));
                         cumulative_gas_used += receipt.gas_used;
                         receipt.cumulative_gas_used = cumulative_gas_used;
                         if (rev < EVMC_BYZANTIUM)
                             receipt.post_state = state::mpt_hash(state);
-                        j_receipt["cumulativeGasUsed"] = hex0x(cumulative_gas_used);
+                        json::write(j_receipt, "cumulativeGasUsed", hex0x(cumulative_gas_used));
 
-                        j_receipt["blockHash"] = hex0x(bytes32{});
-                        j_receipt["contractAddress"] = hex0x(address{});
-                        j_receipt["logsBloom"] = hex0x(receipt.logs_bloom_filter);
-                        j_receipt["logs"] = json::json::array();  // FIXME: Add to_json<state:Log>
-                        j_receipt["root"] = "";
-                        j_receipt["status"] = "0x1";
-                        j_receipt["transactionIndex"] = hex0x(i);
+                        json::write(j_receipt, "blockHash", hex0x(bytes32{}));
+                        json::write(j_receipt, "contractAddress", hex0x(address{}));
+                        json::write(j_receipt, "logsBloom", hex0x(receipt.logs_bloom_filter));
+                        json::write(j_receipt, "logs", json::array());
+                        json::write(j_receipt, "root", "");
+                        json::write(j_receipt, "status", "0x1");
+                        json::write(j_receipt, "transactionIndex", hex0x(i));
                         blob_gas_left -= static_cast<int64_t>(tx.blob_gas_used());
                         transactions.emplace_back(std::move(tx));
                         block_gas_left -= receipt.gas_used;
@@ -254,12 +264,13 @@ int main(int argc, const char* argv[])
         if (rev >= EVMC_PRAGUE)
         {
             // EIP-7685: General purpose execution layer requests
-            j_result["requests"] = json::json::array();
+            json::write(j_result, "requests", json::array());
             for (const auto& r : requests)
             {
-                if (!r.data().empty())
-                    // Only report non-empty requests. Include the leading type byte.
-                    j_result["requests"].emplace_back(hex0x(r.raw_data));
+                if (!r.data().empty()) {
+                    auto& requests_array = j_result["requests"].get<std::vector<std::string>>();
+                    requests_array.push_back(hex0x(r.raw_data));
+                }
             }
 
             auto requests_hash = calculate_requests_hash(requests);
@@ -267,10 +278,10 @@ int main(int argc, const char* argv[])
             j_result["requestsHash"] = hex0x(requests_hash);
         }
 
-        std::ofstream{output_dir / output_result_file} << std::setw(2) << j_result;
+        std::ofstream{output_dir / output_result_file} << glz::write_json(j_result, glz::format::indent);
 
         // Print out current state to outAlloc file
-        std::ofstream{output_dir / output_alloc_file} << std::setw(2) << to_json(TestState{state});
+        std::ofstream{output_dir / output_alloc_file} << glz::write_json(TestState{state}, glz::format::indent);
 
         if (!output_body_file.empty())
             std::ofstream{output_dir / output_body_file} << hex0x(rlp::encode(transactions));

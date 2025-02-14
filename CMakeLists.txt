@@ -39,6 +39,11 @@ endif()
 hunter_add_package(ethash)
 find_package(ethash CONFIG REQUIRED)
 
+# Add comment to mark for future removal
+# TODO: Remove nlohmann_json dependency after glaze migration is complete
+hunter_add_package(nlohmann_json)
+find_package(nlohmann_json CONFIG REQUIRED)
+
 option(EVMC_TOOLS "Build EVMC test tools" ${EVMONE_TESTING})
 option(EVMC_INSTALL "Install EVMC" OFF)
 
@@ -133,6 +138,15 @@ add_subdirectory(lib)
 if(EVMONE_TESTING)
     enable_testing()
     add_subdirectory(test)
+
+    # Add glaze to all test targets
+    foreach(target ${test_targets})
+        target_link_libraries(${target} PRIVATE glaze::glaze)
+    endforeach()
+
+    # Add for all test targets that need glaze
+    target_include_directories(evmone-eoftest PRIVATE ${glaze_SOURCE_DIR}/include)
+    target_include_directories(evmone-state PRIVATE ${glaze_SOURCE_DIR}/include)
 endif()
 
 
@@ -165,3 +179,22 @@ install(DIRECTORY ${include_dir}/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 cable_add_archive_package()
+
+# Update C++ standard requirement
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Add glaze dependency (using FetchContent)
+include(FetchContent)
+FetchContent_Declare(
+    glaze
+    GIT_REPOSITORY https://github.com/stephenberry/glaze
+    GIT_TAG v1.5.2
+)
+FetchContent_MakeAvailable(glaze)
+
+# Add glaze include directories to all targets
+include_directories(${glaze_SOURCE_DIR}/include)
+
+# Add glaze include directories
+target_include_directories(evmone-state PRIVATE ${glaze_SOURCE_DIR}/include)

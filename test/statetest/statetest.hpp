@@ -8,6 +8,7 @@
 #include "../state/test_state.hpp"
 #include "../state/transaction.hpp"
 #include <nlohmann/json.hpp>
+#include <glaze/glaze.hpp>
 
 namespace json = nlohmann;
 
@@ -38,6 +39,16 @@ struct TestMultiTransaction : state::Transaction
         tx.value = values.at(indexes.value);
         return tx;
     }
+};
+
+// Add glaze meta info
+template<>
+struct glz::meta<TestMultiTransaction::Indexes> {
+    static constexpr auto value = object(
+        "input", &TestMultiTransaction::Indexes::input,
+        "gas_limit", &TestMultiTransaction::Indexes::gas_limit,
+        "value", &TestMultiTransaction::Indexes::value
+    );
 };
 
 struct StateTransitionTest

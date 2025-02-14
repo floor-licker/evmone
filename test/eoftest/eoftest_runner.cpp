@@ -6,14 +6,10 @@
 #include "eoftest.hpp"
 #include <evmc/evmc.hpp>
 #include <evmone/eof.hpp>
-#include <gtest/gtest.h>
-#include <nlohmann/json.hpp>
-
-namespace json = nlohmann;
+#include <glaze/glaze.hpp>
 
 namespace evmone::test
 {
-
 namespace
 {
 struct EOFValidationTest
@@ -34,69 +30,107 @@ struct EOFValidationTest
     std::unordered_map<std::string, Case> cases;
 };
 
-void from_json(const json::json& j, EOFValidationTest::Case& o)
-{
-    const auto op_code = evmc::from_hex(j.at("code").get<std::string>());
-    if (!op_code)
-        throw std::invalid_argument{"code is invalid hex string"};
-    o.code = *op_code;
+} // anonymous namespace
+} // namespace evmone::test
 
-    if (const auto it_kind = j.find("containerKind"); it_kind != j.end())
-    {
-        if (it_kind->get<std::string>() == "INITCODE")
+// Put all glaze meta definitions in the glz namespace
+namespace glz {
+    template <>
+    struct meta<evmone::test::EOFValidationTest::Case::Expectation> {
+        static constexpr auto value = object(
+            "rev", &evmone::test::EOFValidationTest::Case::Expectation::rev,
+            "result", &evmone::test::EOFValidationTest::Case::Expectation::result
+        );
+    };
+
+    template <>
+    struct meta<evmone::test::EOFValidationTest::Case> {
+        static constexpr auto value = object(
+            "name", &evmone::test::EOFValidationTest::Case::name,
+            "code", &evmone::test::EOFValidationTest::Case::code,
+            "containerKind", &evmone::test::EOFValidationTest::Case::kind,
+            "expectations", &evmone::test::EOFValidationTest::Case::expectations
+        );
+    };
+
+    template <>
+    struct meta<evmone::test::EOFValidationTest> {
+        static constexpr auto value = object(
+            "name", &evmone::test::EOFValidationTest::name,
+            "cases", &evmone::test::EOFValidationTest::cases
+        );
+    };
+}
+
+using evmone::ContainerKind;
+using evmone::EOFValidationError;
+using evmone::test::EOFValidationTest;
+
+void from_json(const nlohmann::json& j, evmone::test::EOFValidationTest::Case& o)
+{
+    const auto code = evmc::from_hex(j.at("code").get<std::string>());
+    if (!code)
+        throw std::invalid_argument{"code is invalid hex string"};
+    o.code = *code;
+
+    if (j.contains("containerKind")) {
+        if (j["containerKind"].get<std::string>() == "INITCODE")
             o.kind = ContainerKind::initcode;
     }
 
-    for (const auto& [rev, result] : j.at("results").items())
-    {
-        o.expectations.push_back({to_rev(rev), result.at("result").get<bool>()});
+    for (const auto& [rev, result] : j.at("results").items()) {
+        o.expectations.push_back({
+            to_rev(rev), 
+            result.at("result").get<bool>()
+        });
     }
 }
 
-void from_json(const json::json& j, EOFValidationTest& o)
+void from_json(const nlohmann::json& j, evmone::test::EOFValidationTest& o)
 {
     if (!j.is_object() || j.empty())
         throw std::invalid_argument{"JSON test must be an object with single key of the test name"};
 
-    for (const auto& [name, test] : j.at("vectors").items())
-    {
-        o.cases.emplace(name, test.get<EOFValidationTest::Case>());
+    for (const auto& [name, test] : j.at("vectors").items()) {
+        o.cases.emplace(name, from_json<EOFValidationTest::Case>(test));
     }
 }
 
-void from_json(const json::json& j, std::vector<EOFValidationTest>& o)
+void from_json(const nlohmann::json& j, std::vector<EOFValidationTest>& o)
 {
-    for (const auto& elem_it : j.items())
-    {
-        auto test = elem_it.value().get<EOFValidationTest>();
-        test.name = elem_it.key();
-        o.emplace_back(std::move(test));
+    for (const auto& [name, test] : j.items()) {
+        auto t = from_json<EOFValidationTest>(test);
+        t.name = name;
+        o.emplace_back(std::move(t));
     }
 }
-
-std::vector<EOFValidationTest> load_eof_tests(std::istream& input)
-{
-    return json::json::parse(input).get<std::vector<EOFValidationTest>>();
-}
-
-}  // namespace
 
 void run_eof_test(std::istream& input)
 {
-    const auto tests = evmone::test::load_eof_tests(input);
+    const auto tests = glz::read_json<std::vector<EOFValidationTest>>(input);
+
     for (const auto& test : tests)
     {
-        for (const auto& [name, cases] : test.cases)
+        for (const auto& [name, test_case] : test.cases)
         {
-            for (const auto& expectation : cases.expectations)
+            for (const auto& expectation : test_case.expectations)
             {
-                const auto result = evmone::validate_eof(expectation.rev, cases.kind, cases.code);
-                const bool b_result = (result == EOFValidationError::success);
-                EXPECT_EQ(b_result, expectation.result)
-                    << name << " " << expectation.rev << " " << hex(cases.code);
+                const auto result = validate_eof(
+                    expectation.rev, test_case.kind, test_case.code);
+                const auto success = (result == EOFValidationError::success);
+
+                if (success != expectation.result)
+                {
+                    throw std::runtime_error(
+                        "unexpected validation result for " + test.name + "/" + name +
+                        " at revision " + std::to_string(expectation.rev) +
+                        ": expected " + std::to_string(expectation.result) +
+                        ", got " + std::to_string(success));
+                }
             }
         }
     }
 }
 
-}  // namespace evmone::test
+} // namespace evmone::test
+

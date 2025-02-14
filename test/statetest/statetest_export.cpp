@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "statetest.hpp"
+#include <glaze/glaze.hpp>
 
 namespace evmone::test
 {
@@ -52,17 +53,17 @@ namespace evmone::test
 }
 
 
-json::json to_json(const TestState& state)
+json::value to_json(const TestState& state)
 {
-    json::json j = json::json::object();
+    json::value j = json::object();
     for (const auto& [addr, acc] : state)
     {
-        auto& j_acc = j[hex0x(addr)];
-        j_acc["nonce"] = hex0x(acc.nonce);
-        j_acc["balance"] = hex0x(acc.balance);
-        j_acc["code"] = hex0x(bytes_view(acc.code.data(), acc.code.size()));
+        auto& j_acc = j[hex0x(addr)] = json::object();
+        json::write(j_acc, "nonce", hex0x(acc.nonce));
+        json::write(j_acc, "balance", hex0x(acc.balance));
+        json::write(j_acc, "code", hex0x(bytes_view(acc.code.data(), acc.code.size())));
 
-        auto& j_storage = j_acc["storage"] = json::json::object();
+        auto& j_storage = j_acc["storage"] = json::object();
         for (const auto& [key, val] : acc.storage)
         {
             if (!is_zero(val))

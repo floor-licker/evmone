@@ -11,6 +11,7 @@
 #include <evmc/evmc.hpp>
 #include <span>
 #include <vector>
+#include <glaze/glaze.hpp>
 
 namespace evmone::test
 {
@@ -69,6 +70,51 @@ struct BlockchainTest
     RevisionSchedule rev;
 
     Expectation expectation;
+};
+
+template<>
+struct glz::meta<BlockHeader> {
+    static constexpr auto value = object(
+        "parentHash", &BlockHeader::parent_hash,
+        "coinbase", &BlockHeader::coinbase,
+        "stateRoot", &BlockHeader::state_root,
+        "receiptTrie", &BlockHeader::receipts_root,
+        "bloom", &BlockHeader::logs_bloom,
+        "difficulty", &BlockHeader::difficulty,
+        "mixHash", &BlockHeader::prev_randao,
+        "number", &BlockHeader::block_number,
+        "gasLimit", &BlockHeader::gas_limit,
+        "gasUsed", &BlockHeader::gas_used,
+        "timestamp", &BlockHeader::timestamp,
+        "extraData", &BlockHeader::extra_data,
+        "baseFeePerGas", &BlockHeader::base_fee_per_gas,
+        "hash", &BlockHeader::hash,
+        "transactionsTrie", &BlockHeader::transactions_root,
+        "withdrawalsRoot", &BlockHeader::withdrawal_root,
+        "parentBeaconBlockRoot", &BlockHeader::parent_beacon_block_root,
+        "blobGasUsed", &BlockHeader::blob_gas_used
+    );
+};
+
+template<>
+struct glz::meta<Block> {
+    static constexpr auto value = object(
+        "blockHeader", &Block::header,
+        "transactions", &Block::transactions,
+        "uncleHeaders", &Block::ommers,
+        "withdrawals", &Block::withdrawals
+    );
+};
+
+template<>
+struct glz::meta<BlockchainTest> {
+    static constexpr auto value = object(
+        "network", &BlockchainTest::rev,
+        "genesisBlockHeader", &BlockchainTest::genesis_header,
+        "pre", &BlockchainTest::genesis_state,
+        "lastblockhash", &BlockchainTest::last_block_hash,
+        "blocks", &BlockchainTest::blocks
+    );
 };
 
 std::vector<BlockchainTest> load_blockchain_tests(std::istream& input);

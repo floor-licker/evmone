@@ -5,6 +5,7 @@
 #include "../statetest/statetest.hpp"
 #include "../utils/utils.hpp"
 #include "blockchaintest.hpp"
+#include <glaze/glaze.hpp>
 
 namespace evmone::test
 {
@@ -12,162 +13,121 @@ namespace evmone::test
 namespace
 {
 template <typename T>
-T load_if_exists(const json::json& j, std::string_view key)
+T load_if_exists(const json::value& j, std::string_view key)
 {
-    if (const auto it = j.find(key); it != j.end())
-        return from_json<T>(*it);
-    return {};
+    return json::get_optional<T>(j, key).value_or(T{});
 }
+
 template <typename T>
-std::optional<T> load_optional(const json::json& j, std::string_view key)
+std::optional<T> load_optional(const json::value& j, std::string_view key)
 {
-    if (const auto it = j.find(key); it != j.end())
-        return from_json<T>(*it);
-    return std::nullopt;
+    return json::get_optional<T>(j, key);
 }
 }  // namespace
 
 template <>
-BlockHeader from_json<BlockHeader>(const json::json& j)
+BlockHeader from_json<BlockHeader>(const json::value& j)
 {
+    auto [parent_hash, coinbase, state_root, receipts_root, logs_bloom, number, gas_limit, 
+          gas_used, timestamp, extra_data, hash, txs_root] = 
+        glz::read<std::tuple<
+            hash256, address, hash256, hash256, bytes, int64_t, int64_t,
+            int64_t, int64_t, bytes, hash256, hash256
+        >>(j, {
+            "parentHash", "coinbase", "stateRoot", "receiptTrie", "bloom",
+            "number", "gasLimit", "gasUsed", "timestamp", "extraData",
+            "hash", "transactionsTrie"
+        });
+
     return {
-        .parent_hash = from_json<hash256>(j.at("parentHash")),
-        .coinbase = from_json<address>(j.at("coinbase")),
-        .state_root = from_json<hash256>(j.at("stateRoot")),
-        .receipts_root = from_json<hash256>(j.at("receiptTrie")),
-        .logs_bloom = state::bloom_filter_from_bytes(from_json<bytes>(j.at("bloom"))),
+        .parent_hash = parent_hash,
+        .coinbase = coinbase,
+        .state_root = state_root,
+        .receipts_root = receipts_root,
+        .logs_bloom = state::bloom_filter_from_bytes(logs_bloom),
         .difficulty = load_if_exists<int64_t>(j, "difficulty"),
         .prev_randao = load_if_exists<bytes32>(j, "mixHash"),
-        .block_number = from_json<int64_t>(j.at("number")),
-        .gas_limit = from_json<int64_t>(j.at("gasLimit")),
-        .gas_used = from_json<int64_t>(j.at("gasUsed")),
-        .timestamp = from_json<int64_t>(j.at("timestamp")),
-        .extra_data = from_json<bytes>(j.at("extraData")),
+        .block_number = number,
+        .gas_limit = gas_limit,
+        .gas_used = gas_used,
+        .timestamp = timestamp,
+        .extra_data = extra_data,
         .base_fee_per_gas = load_if_exists<uint64_t>(j, "baseFeePerGas"),
-        .hash = from_json<hash256>(j.at("hash")),
-        .transactions_root = from_json<hash256>(j.at("transactionsTrie")),
+        .hash = hash,
+        .transactions_root = txs_root,
         .withdrawal_root = load_if_exists<hash256>(j, "withdrawalsRoot"),
         .parent_beacon_block_root = load_if_exists<hash256>(j, "parentBeaconBlockRoot"),
         .blob_gas_used = load_optional<uint64_t>(j, "blobGasUsed"),
-        .excess_blob_gas = load_optional<uint64_t>(j, "excessBlobGas"),
-        .requests_hash = load_if_exists<hash256>(j, "requestsHash"),
     };
 }
 
-static TestBlock load_test_block(const json::json& j, const RevisionSchedule& rev_schedule)
+template <>
+Block from_json<Block>(const json::value& j)
 {
-    using namespace state;
-    TestBlock tb;
+    Block block;
+    block.header = from_json<BlockHeader>(j.at("blockHeader"));
 
-    if (const auto it = j.find("blockHeader"); it != j.end())
-    {
-        tb.expected_block_header = from_json<BlockHeader>(*it);
-        tb.block_info.number = tb.expected_block_header.block_number;
-        tb.block_info.timestamp = tb.expected_block_header.timestamp;
-
-        const auto rev = rev_schedule.get_revision(tb.block_info.timestamp);
-
-        tb.block_info.gas_limit = tb.expected_block_header.gas_limit;
-        tb.block_info.coinbase = tb.expected_block_header.coinbase;
-        tb.block_info.difficulty = tb.expected_block_header.difficulty;
-        tb.block_info.prev_randao = tb.expected_block_header.prev_randao;
-        tb.block_info.base_fee = tb.expected_block_header.base_fee_per_gas;
-        tb.block_info.parent_beacon_block_root = tb.expected_block_header.parent_beacon_block_root;
-        tb.block_info.blob_gas_used = tb.expected_block_header.blob_gas_used;
-        tb.block_info.excess_blob_gas = tb.expected_block_header.excess_blob_gas;
-
-        tb.block_info.blob_base_fee =
-            tb.block_info.excess_blob_gas.has_value() ?
-                std::optional(state::compute_blob_gas_price(rev, *tb.block_info.excess_blob_gas)) :
-                std::nullopt;
-
-        // Override prev_randao with difficulty pre-Merge
-        if (rev < EVMC_PARIS)
-        {
-            tb.block_info.prev_randao =
-                intx::be::store<bytes32>(intx::uint256{tb.block_info.difficulty});
+    if (auto txs = json::get_optional<json::value>(j, "transactions")) {
+        for (const auto& tx : *txs) {
+            block.transactions.push_back(from_json<state::Transaction>(tx));
         }
     }
 
-    if (const auto it = j.find("uncleHeaders"); it != j.end())
-    {
-        const auto current_block_number = tb.block_info.number;
-        for (const auto& ommer : *it)
-        {
-            tb.block_info.ommers.push_back({from_json<address>(ommer.at("coinbase")),
-                static_cast<uint32_t>(
-                    current_block_number - from_json<int64_t>(ommer.at("number")))});
+    if (auto uncles = json::get_optional<json::value>(j, "uncleHeaders")) {
+        for (const auto& uncle : *uncles) {
+            block.ommers.push_back(from_json<BlockHeader>(uncle));
         }
     }
 
-    if (auto it = j.find("withdrawals"); it != j.end())
-    {
-        for (const auto& withdrawal : *it)
-            tb.block_info.withdrawals.emplace_back(from_json<Withdrawal>(withdrawal));
+    if (auto withdrawals = json::get_optional<json::value>(j, "withdrawals")) {
+        for (const auto& withdrawal : *withdrawals) {
+            block.withdrawals.push_back(from_json<state::Withdrawal>(withdrawal));
+        }
     }
 
-    if (auto it = j.find("transactions"); it != j.end())
-    {
-        for (const auto& tx : *it)
-            tb.transactions.emplace_back(from_json<Transaction>(tx));
-    }
-
-    return tb;
+    return block;
 }
 
-namespace
+template <>
+BlockchainTest from_json<BlockchainTest>(const json::value& j)
 {
-BlockchainTest load_blockchain_test_case(const std::string& name, const json::json& j)
-{
-    using namespace state;
+    BlockchainTest test;
 
-    BlockchainTest bt;
-    bt.name = name;
-    bt.genesis_block_header = from_json<BlockHeader>(j.at("genesisBlockHeader"));
-    bt.pre_state = from_json<TestState>(j.at("pre"));
-    bt.rev = to_rev_schedule(j.at("network").get<std::string>());
+    auto [network, seal_engine] = glz::read<std::tuple<std::string, std::string>>(
+        j, {"network", "sealEngine"}
+    );
 
-    for (const auto& el : j.at("blocks"))
-    {
-        if (const auto it = el.find("expectException"); it != el.end())
-        {
-            // `rlp_decoded` holds the `FixtureBlock` element with the relevant block data for
-            // invalid blocks within a test. It should be a sibling element to `expectException`.
+    test.rev = to_rev(network);
+    if (seal_engine != "NoProof")
+        throw UnsupportedTestFeature("Unsupported seal engine: " + seal_engine);
 
-            // TODO: Add support for invalidly rlp-encoded blocks, which do
-            // not have `rlp_decoded`.
-            if (!el.contains("rlp_decoded"))
-                throw UnsupportedTestFeature(
-                    "tests with invalidly rlp-encoded blocks are not supported");
+    test.genesis_header = from_json<BlockHeader>(j.at("genesisBlockHeader"));
+    test.genesis_state = from_json<TestState>(j.at("pre"));
+    test.last_block_hash = from_json<hash256>(j.at("lastblockhash"));
 
-            auto test_block = load_test_block(el.at("rlp_decoded"), bt.rev);
-            test_block.valid = false;
-            bt.test_blocks.emplace_back(test_block);
+    if (auto blocks = json::get_optional<json::value>(j, "blocks")) {
+        for (const auto& block_json : *blocks) {
+            if (block_json.contains("expectException"))
+                continue;  // Skip invalid blocks
+            test.blocks.push_back(from_json<Block>(block_json));
         }
-        else
-            bt.test_blocks.emplace_back(load_test_block(el, bt.rev));
     }
 
-    bt.expectation.last_block_hash = from_json<hash256>(j.at("lastblockhash"));
-
-    if (const auto it = j.find("postState"); it != j.end())
-        bt.expectation.post_state = from_json<TestState>(*it);
-    else if (const auto it_hash = j.find("postStateHash"); it_hash != j.end())
-        bt.expectation.post_state = from_json<hash256>(*it_hash);
-
-    return bt;
-}
-}  // namespace
-
-static void from_json(const json::json& j, std::vector<BlockchainTest>& o)
-{
-    for (const auto& elem_it : j.items())
-        o.emplace_back(load_blockchain_test_case(elem_it.key(), elem_it.value()));
+    return test;
 }
 
 std::vector<BlockchainTest> load_blockchain_tests(std::istream& input)
 {
-    return json::json::parse(input).get<std::vector<BlockchainTest>>();
+    std::vector<BlockchainTest> result;
+    auto j = glz::read_json(input);
+
+    for (const auto& [name, test_json] : j.items()) {
+        auto test = from_json<BlockchainTest>(test_json);
+        test.name = name;
+        result.push_back(std::move(test));
+    }
+
+    return result;
 }
 
 }  // namespace evmone::test

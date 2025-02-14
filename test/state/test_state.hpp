@@ -9,6 +9,7 @@
 #include <map>
 #include <span>
 #include <variant>
+#include "../../deps/src/glaze/include/glaze/glaze.hpp"
 
 namespace evmone
 {
@@ -21,6 +22,9 @@ struct StateDiff;
 struct Transaction;
 struct TransactionReceipt;
 struct Withdrawal;
+struct AccessList;
+struct Log;
+struct TransactionTrace;
 }  // namespace state
 
 namespace test
@@ -99,5 +103,145 @@ void system_call_block_start(TestState& state, const state::BlockInfo& block,
 /// Wrapping of state::system_call_block_end() which operates on TestState.
 std::vector<state::Requests> system_call_block_end(TestState& state, const state::BlockInfo& block,
     const state::BlockHashes& block_hashes, evmc_revision rev, evmc::VM& vm);
+
+template<>
+struct glz::meta<TestState> {
+    static constexpr auto value = object(
+        "nonce", &TestState::nonce,
+        "balance", &TestState::balance,
+        "code", &TestState::code,
+        "storage", &TestState::storage
+    );
+};
+
+template<>
+struct glz::meta<state::BlockInfo> {
+    static constexpr auto value = object(
+        "number", &state::BlockInfo::number,
+        "timestamp", &state::BlockInfo::timestamp,
+        "gasLimit", &state::BlockInfo::gas_limit,
+        "coinbase", &state::BlockInfo::coinbase,
+        "difficulty", &state::BlockInfo::difficulty,
+        "baseFee", &state::BlockInfo::base_fee
+    );
+};
+
+template<>
+struct glz::meta<state::Transaction> {
+    static constexpr auto value = object(
+        "sender", &state::Transaction::sender,
+        "nonce", &state::Transaction::nonce,
+        "maxFeePerGas", &state::Transaction::max_gas_price,
+        "maxPriorityFeePerGas", &state::Transaction::max_priority_gas_price,
+        "gas", &state::Transaction::gas_limit,
+        "to", &state::Transaction::to,
+        "value", &state::Transaction::value,
+        "data", &state::Transaction::data,
+        "accessList", &state::Transaction::access_list
+    );
+};
+
+template<>
+struct glz::meta<TestAccount> {
+    static constexpr auto value = object(
+        "nonce", &TestAccount::nonce,
+        "balance", &TestAccount::balance,
+        "storage", &TestAccount::storage,
+        "code", &TestAccount::code
+    );
+};
+
+template<>
+struct glz::meta<state::TransactionReceipt> {
+    static constexpr auto value = object(
+        "transactionHash", &state::TransactionReceipt::transaction_hash,
+        "gasUsed", &state::TransactionReceipt::gas_used,
+        "cumulativeGasUsed", &state::TransactionReceipt::cumulative_gas_used,
+        "blockHash", &state::TransactionReceipt::block_hash,
+        "contractAddress", &state::TransactionReceipt::contract_address,
+        "logsBloom", &state::TransactionReceipt::logs_bloom_filter,
+        "logs", &state::TransactionReceipt::logs,
+        "status", &state::TransactionReceipt::status,
+        "transactionIndex", &state::TransactionReceipt::transaction_index
+    );
+};
+
+template<>
+struct glz::meta<state::Withdrawal> {
+    static constexpr auto value = object(
+        "index", &state::Withdrawal::index,
+        "validatorIndex", &state::Withdrawal::validator_index,
+        "address", &state::Withdrawal::recipient,
+        "amount", &state::Withdrawal::amount
+    );
+};
+
+template<>
+struct glz::meta<state::AccessList> {
+    static constexpr auto value = object(
+        "address", &state::AccessList::address,
+        "storageKeys", &state::AccessList::storage_keys
+    );
+};
+
+template<>
+struct glz::meta<state::Log> {
+    static constexpr auto value = object(
+        "address", &state::Log::addr,
+        "topics", &state::Log::topics,
+        "data", &state::Log::data
+    );
+};
+
+template<>
+struct glz::meta<state::Ommer> {
+    static constexpr auto value = object(
+        "address", &state::Ommer::address,
+        "delta", &state::Ommer::delta
+    );
+};
+
+template<>
+struct glz::meta<state::StateDiff> {
+    static constexpr auto value = object(
+        "accounts", &state::StateDiff::accounts,
+        "storage", &state::StateDiff::storage
+    );
+};
+
+template<>
+struct glz::meta<state::Authorization> {
+    static constexpr auto value = object(
+        "chain_id", &state::Authorization::chain_id,
+        "addr", &state::Authorization::addr,
+        "nonce", &state::Authorization::nonce,
+        "signer", &state::Authorization::signer,
+        "r", &state::Authorization::r,
+        "s", &state::Authorization::s,
+        "v", &state::Authorization::v
+    );
+};
+
+template<>
+struct glz::meta<TestBlockHashes> {
+    static constexpr auto value = object(
+        "blockHashes", &TestBlockHashes::operator std::unordered_map<int64_t, bytes32>&
+    );
+};
+
+template<>
+struct glz::meta<state::TransactionTrace> {
+    static constexpr auto value = object(
+        "pc", &state::TransactionTrace::pc,
+        "op", &state::TransactionTrace::op,
+        "gas", &state::TransactionTrace::gas,
+        "gasCost", &state::TransactionTrace::gas_cost,
+        "memory", &state::TransactionTrace::memory,
+        "stack", &state::TransactionTrace::stack,
+        "depth", &state::TransactionTrace::depth,
+        "refund", &state::TransactionTrace::refund,
+        "error", &state::TransactionTrace::error
+    );
+};
 }  // namespace test
 }  // namespace evmone

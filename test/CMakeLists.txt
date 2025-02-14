@@ -13,6 +13,8 @@ find_package(GTest CONFIG REQUIRED)
 hunter_add_package(benchmark)
 find_package(benchmark CONFIG REQUIRED)
 
+# Add comment to mark for future removal
+# TODO: Remove nlohmann_json dependency after glaze migration is complete
 hunter_add_package(nlohmann_json)
 find_package(nlohmann_json CONFIG REQUIRED)
 
@@ -53,3 +55,17 @@ if(type STREQUAL SHARED_LIBRARY)
         add_test(NAME ${PROJECT_NAME}/evm-test COMMAND evm-test $<TARGET_FILE:evmone>)
     endif()
 endif()
+
+# Add glaze to all test targets
+set(test_targets
+    evmone-unittests
+    evmone-statetest
+    evmone-blockchaintest
+    evmone-eoftest
+    evmone-t8n
+    evmone-json-bench
+)
+
+foreach(target ${test_targets})
+    target_link_libraries(${target} PRIVATE glaze::glaze)
+endforeach()
