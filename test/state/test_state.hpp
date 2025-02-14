@@ -119,10 +119,15 @@ struct glz::meta<state::BlockInfo> {
     static constexpr auto value = object(
         "number", &state::BlockInfo::number,
         "timestamp", &state::BlockInfo::timestamp,
-        "gasLimit", &state::BlockInfo::gas_limit,
+        "parent_timestamp", &state::BlockInfo::parent_timestamp,
+        "gas_limit", &state::BlockInfo::gas_limit,
         "coinbase", &state::BlockInfo::coinbase,
         "difficulty", &state::BlockInfo::difficulty,
-        "baseFee", &state::BlockInfo::base_fee
+        "parent_difficulty", &state::BlockInfo::parent_difficulty,
+        "parent_ommers_hash", &state::BlockInfo::parent_ommers_hash,
+        "prev_randao", &state::BlockInfo::prev_randao,
+        "base_fee", &state::BlockInfo::base_fee,
+        "withdrawals", &state::BlockInfo::withdrawals
     );
 };
 

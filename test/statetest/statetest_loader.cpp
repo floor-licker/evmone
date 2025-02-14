@@ -10,7 +10,6 @@
 
 namespace evmone::test
 {
-namespace json = glz;
 using evmc::from_hex;
 
 namespace
@@ -497,7 +496,11 @@ static void from_json(const json::value& j, std::vector<StateTransitionTest>& o)
 }
 
 std::vector<StateTransitionTest> load_state_tests(std::istream& input) {
-    return glz::read_json<std::vector<StateTransitionTest>>(input);
+    auto result = glz::read_json<std::vector<StateTransitionTest>>(input);
+    if (!result) {
+        throw std::runtime_error("Failed to parse state tests: " + result.error());
+    }
+    return *result;
 }
 
 void validate_state(const TestState& state, evmc_revision rev)
@@ -558,8 +561,142 @@ namespace glz {
             // Add fields here
         );
     };
-}
 
-// Change JSON loading to use glaze
-auto result = glz::read_json<StateTest>(input);
+    template <>
+    struct meta<state::Transaction> {
+        static constexpr auto value = object(
+            "data", &state::Transaction::data,
+            "gasLimit", &state::Transaction::gas_limit,
+            "value", &state::Transaction::value,
+            "nonce", &state::Transaction::nonce,
+            "maxFeePerGas", &state::Transaction::max_gas_price,
+            "maxPriorityFeePerGas", &state::Transaction::max_priority_gas_price,
+            "type", &state::Transaction::type,
+            "accessList", &state::Transaction::access_list,
+            "blobVersionedHashes", &state::Transaction::blob_hashes,
+            "maxFeePerBlobGas", &state::Transaction::max_blob_gas_price,
+            "authorizationList", &state::Transaction::authorization_list,
+            "r", &state::Transaction::r,
+            "s", &state::Transaction::s,
+            "v", &state::Transaction::v
+        );
+    };
+    
+    template <>
+    struct meta<TestMultiTransaction> {
+        static constexpr auto value = object(
+            "inputs", &TestMultiTransaction::inputs,
+            "gas_limits", &TestMultiTransaction::gas_limits,
+            "values", &TestMultiTransaction::values,
+            "access_lists", &TestMultiTransaction::access_lists
+        );
+    };
+
+    // Add other meta definitions for:
+    // - StateTransitionTest
+    // - StateTransitionTest::Case
+    // - StateTransitionTest::Case::Expectation
+    // - TestBlockHashes
+    // - TestState
+    // etc.
+
+    template <>
+    struct meta<StateTransitionTest> {
+        static constexpr auto value = object(
+            "name", &StateTransitionTest::name,
+            "pre_state", &StateTransitionTest::pre_state,
+            "multi_tx", &StateTransitionTest::multi_tx,
+            "block_hashes", &StateTransitionTest::block_hashes,
+            "input_labels", &StateTransitionTest::input_labels,
+            "cases", &StateTransitionTest::cases
+        );
+    };
+
+    template <>
+    struct meta<StateTransitionTest::Case> {
+        static constexpr auto value = object(
+            "revision", &StateTransitionTest::Case::revision,
+            "expectations", &StateTransitionTest::Case::expectations,
+            "block_info", &StateTransitionTest::Case::block_info
+        );
+    };
+
+    template <>
+    struct meta<StateTransitionTest::Case::Expectation> {
+        static constexpr auto value = object(
+            "indexes", &StateTransitionTest::Case::Expectation::indexes,
+            "state_hash", &StateTransitionTest::Case::Expectation::state_hash,
+            "logs_hash", &StateTransitionTest::Case::Expectation::logs_hash,
+            "exception", &StateTransitionTest::Case::Expectation::exception
+        );
+    };
+
+    template <>
+    struct meta<TestBlockHashes> {
+        static constexpr auto value = object(
+            "block_hashes", &TestBlockHashes::block_hashes
+        );
+    };
+
+    template <>
+    struct meta<TestMultiTransaction::Indexes> {
+        static constexpr auto value = object(
+            "input", &TestMultiTransaction::Indexes::input,
+            "gas_limit", &TestMultiTransaction::Indexes::gas_limit,
+            "value", &TestMultiTransaction::Indexes::value
+        );
+    };
+
+    template <>
+    struct meta<state::BlockInfo> {
+        static constexpr auto value = object(
+            "currentNumber", &state::BlockInfo::number,
+            "currentTimestamp", &state::BlockInfo::timestamp,
+            "currentGasLimit", &state::BlockInfo::gas_limit,
+            "currentCoinbase", &state::BlockInfo::coinbase,
+            "currentDifficulty", &state::BlockInfo::difficulty,
+            "currentBaseFee", &state::BlockInfo::base_fee,
+            "parentTimestamp", &state::BlockInfo::parent_timestamp,
+            "parentDifficulty", &state::BlockInfo::parent_difficulty,
+            "parentUncleHash", &state::BlockInfo::parent_ommers_hash,
+            "currentExcessBlobGas", &state::BlockInfo::excess_blob_gas,
+            "currentRandom", &state::BlockInfo::prev_randao,
+            "withdrawals", &state::BlockInfo::withdrawals
+        );
+    };
+
+    // For hex string to uint8_t conversion
+    template <>
+    struct meta<uint8_t> {
+        static constexpr auto value = [](auto&& self, auto&& value) {
+            if constexpr (glz::is_reading) {
+                const auto hex = value.template get<std::string>();
+                const auto ret = std::stoul(hex, nullptr, 16);
+                if (ret > std::numeric_limits<uint8_t>::max())
+                    throw std::out_of_range("value > 0xFF");
+                self = static_cast<uint8_t>(ret);
+            }
+        };
+    };
+
+    // For hex string to bytes conversion
+    template <>
+    struct meta<bytes> {
+        static constexpr auto value = [](auto&& self, auto&& value) {
+            if constexpr (glz::is_reading) {
+                self = from_hex(value.template get<std::string>()).value();
+            }
+        };
+    };
+
+    // For hex string to address conversion
+    template <>
+    struct meta<address> {
+        static constexpr auto value = [](auto&& self, auto&& value) {
+            if constexpr (glz::is_reading) {
+                self = evmc::from_hex<address>(value.template get<std::string>()).value();
+            }
+        };
+    };
+}
 }  // namespace evmone::test

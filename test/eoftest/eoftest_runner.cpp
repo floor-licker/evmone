@@ -66,45 +66,6 @@ using evmone::ContainerKind;
 using evmone::EOFValidationError;
 using evmone::test::EOFValidationTest;
 
-void from_json(const nlohmann::json& j, evmone::test::EOFValidationTest::Case& o)
-{
-    const auto code = evmc::from_hex(j.at("code").get<std::string>());
-    if (!code)
-        throw std::invalid_argument{"code is invalid hex string"};
-    o.code = *code;
-
-    if (j.contains("containerKind")) {
-        if (j["containerKind"].get<std::string>() == "INITCODE")
-            o.kind = ContainerKind::initcode;
-    }
-
-    for (const auto& [rev, result] : j.at("results").items()) {
-        o.expectations.push_back({
-            to_rev(rev), 
-            result.at("result").get<bool>()
-        });
-    }
-}
-
-void from_json(const nlohmann::json& j, evmone::test::EOFValidationTest& o)
-{
-    if (!j.is_object() || j.empty())
-        throw std::invalid_argument{"JSON test must be an object with single key of the test name"};
-
-    for (const auto& [name, test] : j.at("vectors").items()) {
-        o.cases.emplace(name, from_json<EOFValidationTest::Case>(test));
-    }
-}
-
-void from_json(const nlohmann::json& j, std::vector<EOFValidationTest>& o)
-{
-    for (const auto& [name, test] : j.items()) {
-        auto t = from_json<EOFValidationTest>(test);
-        t.name = name;
-        o.emplace_back(std::move(t));
-    }
-}
-
 void run_eof_test(std::istream& input)
 {
     const auto tests = glz::read_json<std::vector<EOFValidationTest>>(input);
