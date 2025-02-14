@@ -130,8 +130,24 @@ set(include_dir ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_subdirectory(lib)
 
+# Add glaze dependency first since it's needed by multiple targets
+include(FetchContent)
+FetchContent_Declare(
+    glaze
+    GIT_REPOSITORY https://github.com/stephenberry/glaze
+    GIT_TAG v1.5.2
+)
+FetchContent_MakeAvailable(glaze)
+
+# Make glaze available as an interface library
+add_library(glaze INTERFACE)
+target_include_directories(glaze INTERFACE ${glaze_SOURCE_DIR}/include)
+
 if(EVMONE_TESTING)
     enable_testing()
+    hunter_add_package(GTest)
+    find_package(GTest CONFIG REQUIRED)
+
     add_subdirectory(test)
 
     # Add glaze to all test targets
@@ -144,6 +160,11 @@ if(EVMONE_TESTING)
     target_include_directories(evmone-state PRIVATE ${glaze_SOURCE_DIR}/include)
 endif()
 
+# Only keep nlohmann for benchmarking
+if(EVMONE_BENCH)
+    hunter_add_package(nlohmann_json)
+    find_package(nlohmann_json CONFIG REQUIRED)
+endif()
 
 # INSTALL
 
@@ -178,18 +199,3 @@ cable_add_archive_package()
 # Update C++ standard requirement
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Add glaze dependency (using FetchContent)
-include(FetchContent)
-FetchContent_Declare(
-    glaze
-    GIT_REPOSITORY https://github.com/stephenberry/glaze
-    GIT_TAG v1.5.2
-)
-FetchContent_MakeAvailable(glaze)
-
-# Add glaze include directories to all targets
-include_directories(${glaze_SOURCE_DIR}/include)
-
-# Add glaze include directories
-target_include_directories(evmone-state PRIVATE ${glaze_SOURCE_DIR}/include)

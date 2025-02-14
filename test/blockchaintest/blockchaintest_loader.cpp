@@ -128,7 +128,34 @@ namespace glz {
     template <>
     struct meta<BlockHeader> {
         static constexpr auto value = object(
-            // Add fields...
+            "parentHash", &BlockHeader::parent_hash,
+            "coinbase", &BlockHeader::coinbase,
+            "stateRoot", &BlockHeader::state_root,
+            "receiptTrie", &BlockHeader::receipts_root,
+            "bloom", &BlockHeader::logs_bloom,
+            "difficulty", &BlockHeader::difficulty,
+            "mixHash", &BlockHeader::prev_randao,
+            "number", &BlockHeader::block_number,
+            "gasLimit", &BlockHeader::gas_limit,
+            "gasUsed", &BlockHeader::gas_used,
+            "timestamp", &BlockHeader::timestamp,
+            "extraData", &BlockHeader::extra_data,
+            "baseFeePerGas", &BlockHeader::base_fee_per_gas,
+            "hash", &BlockHeader::hash,
+            "transactionsTrie", &BlockHeader::transactions_root,
+            "withdrawalsRoot", &BlockHeader::withdrawal_root,
+            "parentBeaconBlockRoot", &BlockHeader::parent_beacon_block_root,
+            "blobGasUsed", &BlockHeader::blob_gas_used
+        );
+    };
+
+    template <>
+    struct meta<Block> {
+        static constexpr auto value = object(
+            "blockHeader", &Block::header,
+            "transactions", &Block::transactions,
+            "uncleHeaders", &Block::ommers,
+            "withdrawals", &Block::withdrawals
         );
     };
 }

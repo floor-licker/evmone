@@ -101,19 +101,19 @@ int main(int argc, const char* argv[])
             block_hashes = glz::read<TestBlockHashes>(j);
         }
 
-        json::value j_result = json::object();
+        auto j_result = glz::json_t::object();
 
         // Difficulty was received from upstream. No need to calc
         // TODO: Check if it's needed by the blockchain test. If not remove if statement true branch
         if (block.difficulty != 0)
-            json::write(j_result, "currentDifficulty", hex0x(block.difficulty));
+            j_result["currentDifficulty"] = hex0x(block.difficulty);
         else
         {
             const auto current_difficulty = state::calculate_difficulty(block.parent_difficulty,
                 block.parent_ommers_hash != EmptyListHash, block.parent_timestamp, block.timestamp,
                 block.number, rev);
 
-            json::write(j_result, "currentDifficulty", hex0x(current_difficulty));
+            j_result["currentDifficulty"] = hex0x(current_difficulty);
             block.difficulty = current_difficulty;
 
             if (rev < EVMC_PARIS)  // Override prev_randao with difficulty pre-Merge
@@ -121,7 +121,7 @@ int main(int argc, const char* argv[])
         }
 
         if (rev >= EVMC_LONDON)
-            json::write(j_result, "currentBaseFee", hex0x(block.base_fee));
+            j_result["currentBaseFee"] = hex0x(block.base_fee);
 
         int64_t cumulative_gas_used = 0;
         auto blob_gas_left = static_cast<int64_t>(state::max_blob_gas_per_block(rev));
@@ -144,8 +144,8 @@ int main(int argc, const char* argv[])
 
             if (j_txs.is_array())
             {
-                json::write(j_result, "receipts", json::array());
-                json::write(j_result, "rejected", json::array());
+                j_result["receipts"] = glz::json_t::array();
+                j_result["rejected"] = glz::json_t::array();
 
                 test::system_call_block_start(state, block, block_hashes, rev, vm);
 
@@ -204,21 +204,21 @@ int main(int argc, const char* argv[])
                         txs_logs.insert(txs_logs.end(), tx_logs.begin(), tx_logs.end());
                         auto& j_receipt = j_result["receipts"].get<std::vector<json::json>>()[i];
 
-                        json::write(j_receipt, "transactionHash", computed_tx_hash_str);
-                        json::write(j_receipt, "gasUsed", hex0x(static_cast<uint64_t>(receipt.gas_used)));
+                        j_receipt["transactionHash"] = computed_tx_hash_str;
+                        j_receipt["gasUsed"] = hex0x(static_cast<uint64_t>(receipt.gas_used));
                         cumulative_gas_used += receipt.gas_used;
                         receipt.cumulative_gas_used = cumulative_gas_used;
                         if (rev < EVMC_BYZANTIUM)
                             receipt.post_state = state::mpt_hash(state);
-                        json::write(j_receipt, "cumulativeGasUsed", hex0x(cumulative_gas_used));
+                        j_receipt["cumulativeGasUsed"] = hex0x(cumulative_gas_used);
 
-                        json::write(j_receipt, "blockHash", hex0x(bytes32{}));
-                        json::write(j_receipt, "contractAddress", hex0x(address{}));
-                        json::write(j_receipt, "logsBloom", hex0x(receipt.logs_bloom_filter));
-                        json::write(j_receipt, "logs", json::array());
-                        json::write(j_receipt, "root", "");
-                        json::write(j_receipt, "status", "0x1");
-                        json::write(j_receipt, "transactionIndex", hex0x(i));
+                        j_receipt["blockHash"] = hex0x(bytes32{});
+                        j_receipt["contractAddress"] = hex0x(address{});
+                        j_receipt["logsBloom"] = hex0x(receipt.logs_bloom_filter);
+                        j_receipt["logs"] = json::json::array();
+                        j_receipt["root"] = "";
+                        j_receipt["status"] = "0x1";
+                        j_receipt["transactionIndex"] = hex0x(i);
                         blob_gas_left -= static_cast<int64_t>(tx.blob_gas_used());
                         transactions.emplace_back(std::move(tx));
                         block_gas_left -= receipt.gas_used;
@@ -264,7 +264,7 @@ int main(int argc, const char* argv[])
         if (rev >= EVMC_PRAGUE)
         {
             // EIP-7685: General purpose execution layer requests
-            json::write(j_result, "requests", json::array());
+            j_result["requests"] = glz::json_t::array();
             for (const auto& r : requests)
             {
                 if (!r.data().empty()) {

@@ -74,39 +74,6 @@ namespace glz {
     };
 }
 
-namespace nlohmann {
-    template<>
-    struct adl_serializer<StateTransitionTest> {
-        static void from_json(const json& j, StateTransitionTest& o) {
-            // Implement the conversion
-            o.env.currentCoinbase = j["env"]["currentCoinbase"].get<std::string>();
-            o.env.currentDifficulty = j["env"]["currentDifficulty"].get<std::string>();
-            o.env.currentGasLimit = j["env"]["currentGasLimit"].get<std::string>();
-            o.env.currentNumber = j["env"]["currentNumber"].get<std::string>();
-            o.env.currentTimestamp = j["env"]["currentTimestamp"].get<std::string>();
-            o.env.currentBaseFee = j["env"]["currentBaseFee"].get<std::string>();
-            o.env.blockHashes = j["env"]["blockHashes"].get<std::map<std::string, std::string>>();
-
-            // Convert pre accounts
-            for (const auto& [addr, acc] : j["pre"].items()) {
-                StateTransitionTest::Account account;
-                account.nonce = acc["nonce"].get<std::string>();
-                account.balance = acc["balance"].get<std::string>();
-                account.code = acc["code"].get<std::string>();
-                account.storage = acc["storage"].get<std::map<std::string, std::string>>();
-                o.pre[addr] = std::move(account);
-            }
-
-            // Convert transaction if present
-            if (j.contains("transaction")) {
-                o.transaction.data = j["transaction"]["data"].get<std::vector<std::string>>();
-                o.transaction.gasLimit = j["transaction"]["gasLimit"].get<std::vector<std::string>>();
-                o.transaction.value = j["transaction"]["value"].get<std::vector<std::string>>();
-            }
-        }
-    };
-}
-
 static const std::string large_json = R"({
     "env": {
         "currentCoinbase": "0x2adc25665018aa1fe0e6bc666dac8fc2697ff9ba",
@@ -189,6 +156,20 @@ static const std::string state_json = R"({
     }
 })";
 
+static void BM_GlazeJsonParse(benchmark::State& state) {
+    for (auto _ : state) {
+        auto result = glz::read_json<StateTransitionTest>(state_json);
+        benchmark::DoNotOptimize(result);
+    }
+}
+
+static void BM_NlohmannJsonParse(benchmark::State& state) {
+    for (auto _ : state) {
+        auto result = nlohmann::json::parse(state_json);
+        benchmark::DoNotOptimize(result);
+    }
+}
+
 static void BM_GlazeParse(benchmark::State& state) {
     for (auto _ : state) {
         glz::json_t result;
@@ -242,31 +223,47 @@ static void BM_NlohmannSerialize(benchmark::State& state) {
     }
 }
 
-static void BM_GlazeStateTest(benchmark::State& state) {
+static void BM_GlazeStateTestParse(benchmark::State& state) {
     for (auto _ : state) {
-        auto result = glz::read_json<StateTransitionTest>(state_json);
-        if (!result) {
-            state.SkipWithError("Failed to parse JSON");
-            break;
-        }
-        benchmark::DoNotOptimize(*result);
+        auto result = glz::read_json<StateTransitionTest>(state_json).value();
+        benchmark::DoNotOptimize(result);
     }
 }
 
-static void BM_NlohmannStateTest(benchmark::State& state) {
+static void BM_NlohmannStateTestParse(benchmark::State& state) {
     for (auto _ : state) {
         auto result = nlohmann::json::parse(state_json).get<StateTransitionTest>();
         benchmark::DoNotOptimize(result);
     }
 }
 
+static void BM_GlazeStateTestSerialize(benchmark::State& state) {
+    auto obj = glz::read_json<StateTransitionTest>(state_json).value();
+    for (auto _ : state) {
+        auto json = glz::write_json(obj);
+        benchmark::DoNotOptimize(json);
+    }
+}
+
+static void BM_NlohmannStateTestSerialize(benchmark::State& state) {
+    auto obj = nlohmann::json::parse(state_json).get<StateTransitionTest>();
+    for (auto _ : state) {
+        auto json = nlohmann::json(obj).dump();
+        benchmark::DoNotOptimize(json);
+    }
+}
+
+BENCHMARK(BM_GlazeJsonParse);
+BENCHMARK(BM_NlohmannJsonParse);
 BENCHMARK(BM_GlazeParse);
 BENCHMARK(BM_NlohmannParse);
 BENCHMARK(BM_GlazeParseComplex);
 BENCHMARK(BM_NlohmannParseComplex);
 BENCHMARK(BM_GlazeSerialize);
 BENCHMARK(BM_NlohmannSerialize);
-BENCHMARK(BM_GlazeStateTest);
-BENCHMARK(BM_NlohmannStateTest);
+BENCHMARK(BM_GlazeStateTestParse);
+BENCHMARK(BM_NlohmannStateTestParse);
+BENCHMARK(BM_GlazeStateTestSerialize);
+BENCHMARK(BM_NlohmannStateTestSerialize);
 
 BENCHMARK_MAIN(); 
