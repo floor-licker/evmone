@@ -163,13 +163,6 @@ static void BM_GlazeJsonParse(benchmark::State& state) {
     }
 }
 
-static void BM_NlohmannJsonParse(benchmark::State& state) {
-    for (auto _ : state) {
-        auto result = nlohmann::json::parse(state_json);
-        benchmark::DoNotOptimize(result);
-    }
-}
-
 static void BM_GlazeParse(benchmark::State& state) {
     for (auto _ : state) {
         glz::json_t result;
@@ -179,25 +172,11 @@ static void BM_GlazeParse(benchmark::State& state) {
     }
 }
 
-static void BM_NlohmannParse(benchmark::State& state) {
-    for (auto _ : state) {
-        auto result = nlohmann::json::parse(large_json);
-        benchmark::DoNotOptimize(result);
-    }
-}
-
 static void BM_GlazeParseComplex(benchmark::State& state) {
     for (auto _ : state) {
         glz::json_t result;
         auto ec = glz::read_json(result, complex_json);
         benchmark::DoNotOptimize(ec);
-        benchmark::DoNotOptimize(result);
-    }
-}
-
-static void BM_NlohmannParseComplex(benchmark::State& state) {
-    for (auto _ : state) {
-        auto result = nlohmann::json::parse(complex_json);
         benchmark::DoNotOptimize(result);
     }
 }
@@ -215,24 +194,9 @@ static void BM_GlazeSerialize(benchmark::State& state) {
     }
 }
 
-static void BM_NlohmannSerialize(benchmark::State& state) {
-    auto obj = nlohmann::json::parse(complex_json);
-    for (auto _ : state) {
-        auto json = obj.dump();
-        benchmark::DoNotOptimize(json);
-    }
-}
-
 static void BM_GlazeStateTestParse(benchmark::State& state) {
     for (auto _ : state) {
         auto result = glz::read_json<StateTransitionTest>(state_json).value();
-        benchmark::DoNotOptimize(result);
-    }
-}
-
-static void BM_NlohmannStateTestParse(benchmark::State& state) {
-    for (auto _ : state) {
-        auto result = nlohmann::json::parse(state_json).get<StateTransitionTest>();
         benchmark::DoNotOptimize(result);
     }
 }
@@ -245,25 +209,11 @@ static void BM_GlazeStateTestSerialize(benchmark::State& state) {
     }
 }
 
-static void BM_NlohmannStateTestSerialize(benchmark::State& state) {
-    auto obj = nlohmann::json::parse(state_json).get<StateTransitionTest>();
-    for (auto _ : state) {
-        auto json = nlohmann::json(obj).dump();
-        benchmark::DoNotOptimize(json);
-    }
-}
-
 BENCHMARK(BM_GlazeJsonParse);
-BENCHMARK(BM_NlohmannJsonParse);
 BENCHMARK(BM_GlazeParse);
-BENCHMARK(BM_NlohmannParse);
 BENCHMARK(BM_GlazeParseComplex);
-BENCHMARK(BM_NlohmannParseComplex);
 BENCHMARK(BM_GlazeSerialize);
-BENCHMARK(BM_NlohmannSerialize);
 BENCHMARK(BM_GlazeStateTestParse);
-BENCHMARK(BM_NlohmannStateTestParse);
 BENCHMARK(BM_GlazeStateTestSerialize);
-BENCHMARK(BM_NlohmannStateTestSerialize);
 
 BENCHMARK_MAIN(); 
